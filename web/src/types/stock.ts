@@ -1,0 +1,287 @@
+export type StockSummary = {
+  id: number;
+  symbol: string;
+  company_name: string;
+  exchange: string;
+  sector: string | null;
+  industry: string | null;
+  market_cap: string | null;
+  last_price: string | null;
+  change_pct: number | null;
+  has_prices: boolean;
+};
+
+export type StockListResponse = {
+  items: StockSummary[];
+  total: number;
+};
+
+export type Quote = {
+  price: string | null;
+  previous_close: string | null;
+  change: string | null;
+  change_pct: number | null;
+  as_of: string | null;
+  open: string | null;
+  high: string | null;
+  low: string | null;
+  volume: number | null;
+};
+
+export type ScoreCard = {
+  as_of: string | null;
+  overall: string | null;
+  quality: string | null;
+  growth: string | null;
+  value: string | null;
+  momentum: string | null;
+  financial_health: string | null;
+  management: string | null;
+  ownership: string | null;
+  risk: string | null;
+  canslim: string | null;
+  technical: string | null;
+  sector_strength: string | null;
+  industry_strength: string | null;
+  return_score: string | null;
+  dma_score: string | null;
+  volume_score: string | null;
+  result_score: string | null;
+  momentum_acceleration: string | null;
+  momentum_category: string | null;
+  source: string;
+};
+
+export type FundamentalsSnapshot = {
+  period: string | null;
+  period_label: string | null;
+  period_type: string | null;
+  revenue: string | null;
+  ebitda: string | null;
+  ebit: string | null;
+  pat: string | null;
+  eps: string | null;
+  operating_cashflow: string | null;
+  free_cashflow: string | null;
+  total_assets: string | null;
+  total_debt: string | null;
+  cash: string | null;
+  equity: string | null;
+  roe: string | null;
+  roce: string | null;
+  roa: string | null;
+  debt_equity: string | null;
+  ebitda_margin: string | null;
+  pat_margin: string | null;
+  current_ratio: string | null;
+};
+
+export type FundamentalMetricsSnapshot = {
+  as_of: string | null;
+  latest_annual_period: string | null;
+  latest_quarter_period: string | null;
+  revenue_cagr_3y: string | null;
+  revenue_cagr_5y: string | null;
+  ebitda_cagr_3y: string | null;
+  pat_cagr_3y: string | null;
+  eps_cagr_3y: string | null;
+  fcf_cagr_3y: string | null;
+  revenue_growth_yoy: string | null;
+  pat_growth_yoy: string | null;
+  roe: string | null;
+  roce: string | null;
+  roa: string | null;
+  ebitda_margin: string | null;
+  pat_margin: string | null;
+  debt_equity: string | null;
+  pe_ttm: string | null;
+  pb: string | null;
+  peg: string | null;
+  ev_ebitda: string | null;
+  source: string | null;
+};
+
+export type PeriodFinancialRow = {
+  period: string;
+  period_label: string | null;
+  revenue: string | null;
+  ebitda: string | null;
+  pat: string | null;
+  eps: string | null;
+  free_cashflow: string | null;
+  total_debt: string | null;
+  equity: string | null;
+};
+
+export type OwnershipSnapshot = {
+  period: string | null;
+  promoter_pct: string | null;
+  fii_pct: string | null;
+  dii_pct: string | null;
+  public_pct: string | null;
+  promoter_pledge_pct: string | null;
+};
+
+export type TechnicalsSnapshot = {
+  sma_3: string | null;
+  sma_7: string | null;
+  sma_20: string | null;
+  sma_21: string | null;
+  sma_50: string | null;
+  sma_200: string | null;
+  sma_21_signal: string | null;
+  sma_50_signal: string | null;
+  sma_200_signal: string | null;
+  rsi_14: number | null;
+  high_52w: string | null;
+  low_52w: string | null;
+  distance_from_52w_high_pct: number | null;
+  return_1m_pct: number | null;
+  return_3m_pct: number | null;
+  return_6m_pct: number | null;
+  return_1y_pct: number | null;
+  trend: string | null;
+  trend_score: number | null;
+  crossover_3_7: boolean | null;
+  above_ma_21: boolean | null;
+  ma21_gt_ma50: boolean | null;
+  above_ma_200: boolean | null;
+  golden_cross: boolean | null;
+  pe: string | null;
+  eps: string | null;
+  day_high: string | null;
+  prev_close: string | null;
+  avg_volume_20: number | null;
+  avg_volume_3m: number | null;
+  avg_volume_6m: number | null;
+  avg_volume_1y: number | null;
+  volume_ratio: number | null;
+  distance_20_dma: number | null;
+  distance_50_dma: number | null;
+  distance_200_dma: number | null;
+  momentum_score: number | null;
+  momentum_acceleration: number | null;
+  momentum_category: string | null;
+  return_score: number | null;
+  dma_score: number | null;
+  volume_score: number | null;
+  result_score: number | null;
+};
+
+export type StockAnalysisRow = {
+  id: number;
+  symbol: string;
+  company_name: string;
+  exchange: string;
+  sector: string | null;
+  industry: string | null;
+  ltp: string | null;
+  change_pct: number | null;
+  sma_3: string | null;
+  sma_7: string | null;
+  sma_20: string | null;
+  sma_21: string | null;
+  sma_50: string | null;
+  sma_200: string | null;
+  price_above_50_above_200: boolean | null;
+  sma_50_above_200: boolean | null;
+  crossover_3_7: boolean | null;
+  above_ma_21: boolean | null;
+  ma21_gt_ma50: boolean | null;
+  above_ma_200: boolean | null;
+  volume: number | null;
+  avg_volume_20: number | null;
+  avg_volume_1w: number | null;
+  avg_volume_3m: number | null;
+  avg_volume_6m: number | null;
+  avg_volume_1y: number | null;
+  volume_ratio: number | null;
+  volume_mover: boolean | null;
+  volume_gainer: boolean | null;
+  return_1m_pct: number | null;
+  return_3m_pct: number | null;
+  return_6m_pct: number | null;
+  return_12m_pct: number | null;
+  distance_from_52w_high: number | null;
+  pe: string | null;
+  eps: string | null;
+  market_cap: string | null;
+  trend: string | null;
+  trend_score: number | null;
+  company_strength: string | null;
+  company_strength_source: string;
+  overall: string | null;
+  sector_strength: string | null;
+  industry_strength: string | null;
+  return_score: string | null;
+  dma_score: string | null;
+  volume_score: string | null;
+  result_score: string | null;
+  momentum_score: string | null;
+  momentum_acceleration: string | null;
+  momentum_category: string | null;
+  as_of: string | null;
+};
+
+export type StockAnalysisResponse = {
+  items: StockAnalysisRow[];
+  total: number;
+  scanned: number;
+};
+
+export type ScreenerQuery = {
+  q?: string;
+  exchange?: string;
+  price_above_50_above_200?: boolean;
+  sma_50_above_200?: boolean;
+  volume_mover?: boolean;
+  volume_gainer?: boolean;
+  min_return_1m?: number;
+  min_return_3m?: number;
+  min_return_6m?: number;
+  min_company_strength?: number;
+  min_momentum_score?: number;
+  min_momentum_acceleration?: number;
+  momentum_category?: string;
+  trend?: string;
+  min_score?: number;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+  scan_limit?: number;
+};
+
+export type PriceBar = {
+  date: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  volume: number | null;
+};
+
+export type StockDetail = {
+  id: number;
+  symbol: string;
+  company_name: string;
+  exchange: string;
+  isin: string | null;
+  sector: string | null;
+  industry: string | null;
+  industries?: string[];
+  index_memberships?: string[];
+  market_cap: string | null;
+  listing_date: string | null;
+  status: string;
+  quote: Quote;
+  scores: ScoreCard;
+  fundamentals: FundamentalsSnapshot;
+  annual_fundamentals: FundamentalsSnapshot;
+  fundamental_metrics: FundamentalMetricsSnapshot;
+  quarterly_history: PeriodFinancialRow[];
+  annual_history: PeriodFinancialRow[];
+  ownership: OwnershipSnapshot;
+  technicals: TechnicalsSnapshot;
+  prices: PriceBar[];
+};

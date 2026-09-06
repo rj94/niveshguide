@@ -1,0 +1,14 @@
+{
+  "token": "GENERATED_BY_GOOGLE_LOGIN_DO_NOT_FILL_MANUALLY",
+  "refresh_token": "GENERATED_BY_GOOGLE_LOGIN_DO_NOT_FILL_MANUALLY",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "client_id": "YOUR_DESKTOP_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+  "client_secret": "YOUR_DESKTOP_OAUTH_CLIENT_SECRET",
+  "scopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+  ],
+  "universe_domain": "googleapis.com",
+  "account": "",
+  "expiry": "2099-01-01T00:00:00Z"
+}

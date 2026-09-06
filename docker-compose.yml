@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: screener
+      POSTGRES_PASSWORD: screener
+      POSTGRES_DB: screener
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://screener:screener@postgres:5432/screener
+      GOOGLE_SPREADSHEET_ID: 1RAX7B2YJfdHrhDbuS4ohUBUwwU7ROsozP8j-zkjUoAM
+      GOOGLE_SHEET_GID: "1375108259"
+      GOOGLE_SHEET_NAME: StockFilter
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173,http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/config:/app/config
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

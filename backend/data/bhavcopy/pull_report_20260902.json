@@ -1,0 +1,61 @@
+{
+  "previous": 2389,
+  "new": 3481,
+  "by_segment": {
+    "EQ": 2654,
+    "SME": 464,
+    "ETF": 350,
+    "INVIT": 13
+  },
+  "by_series": {
+    "EQ": 2646,
+    "SM": 369,
+    "BE": 234,
+    "ST": 94,
+    "GS": 45,
+    "GB": 44,
+    "BZ": 28,
+    "IV": 13,
+    "RR": 6,
+    "E1": 1,
+    "SZ": 1
+  },
+  "etf_sample": [
+    "ABGSEC",
+    "ABSL10BANK",
+    "ABSLBANETF",
+    "ABSLLIQUID",
+    "ABSLMSCIN",
+    "ABSLNN50ET",
+    "ABSLPSE",
+    "ALPHA",
+    "ALPHAETF",
+    "ALPL30IETF",
+    "AONEGOLD",
+    "AONELIQUID",
+    "AONENIFTY",
+    "AONESILVER",
+    "AONETMMQ50"
+  ],
+  "sme_sample": [
+    "AAKAAR",
+    "AARADHYA",
+    "ABH",
+    "ABHAPOWER",
+    "ABSMARINE",
+    "ACCENTMIC",
+    "ACCPL",
+    "ACETEC",
+    "ACTIVEINFR",
+    "ADDICTIVE",
+    "ADISOFT",
+    "AERON",
+    "AESTHETIK",
+    "AGARWALFT",
+    "AGARWALTUF"
+  ],
+  "master_path": "D:\\Projects\\Trade\\backend\\data\\nse_symbols.csv",
+  "trade_date": "2026-09-02",
+  "source": "udiff-cm",
+  "source_file": "D:\\Projects\\Trade\\backend\\data\\bhavcopy\\BhavCopy_NSE_CM_0_0_0_20260902_F_0000.csv.zip"
+}

@@ -1,0 +1,66 @@
+# App reads these ACTIVE batch workbooks (equity + ETF/SME overflow).
+# Fill blanks via FillExistingNseSpreadsheets.gs, then: python -m cli sync
+
+defaults:
+  range: A1:W
+  exchange: NSE
+  sheet_name: StockFilter
+  gid: 0
+
+batches:
+  - batch_name: NSE_0_500
+    spreadsheet_id: 1xzT_B1vlCr_MlYN6a-CVfxDUbB8BhZiqfQUJkPGPBBk
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 500
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/1xzT_B1vlCr_MlYN6a-CVfxDUbB8BhZiqfQUJkPGPBBk/edit?gid=0#gid=0
+  - batch_name: NSE_500_1000
+    spreadsheet_id: 1hc33TZaVWf9qRbsSH__07sn_XDkiBDliJF3zf2MAa-4
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 500-1000
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/1hc33TZaVWf9qRbsSH__07sn_XDkiBDliJF3zf2MAa-4/edit?gid=0#gid=0
+  - batch_name: NSE_1000_1500
+    spreadsheet_id: 1obC866jNti_X7yvtugWdh_zhJe5gHPQQRKzRPi1JqyU
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 1000-1500
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/1obC866jNti_X7yvtugWdh_zhJe5gHPQQRKzRPi1JqyU/edit?gid=0#gid=0
+  - batch_name: NSE_1500_2000
+    spreadsheet_id: 1Iv13XpfD1NMWLZYo1NXElJbZnVcqpNyyiNdFYZVN34s
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 1500-2000
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/1Iv13XpfD1NMWLZYo1NXElJbZnVcqpNyyiNdFYZVN34s/edit?gid=0#gid=0
+  - batch_name: NSE_2000_2500
+    spreadsheet_id: 17I3gCKHas-2nf-crUw9br3rKAeNYCXdpSqVXVZsGQxw
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 2000-2500
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/17I3gCKHas-2nf-crUw9br3rKAeNYCXdpSqVXVZsGQxw/edit?gid=0#gid=0
+  - batch_name: NSE_2500_3000
+    spreadsheet_id: 1UBLESBcoLqa65uUdlbk72YSlR9HhytoVbl18fKH_GKg
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 2500-3000
+    status: ACTIVE
+    notes: equity+SME+ETF overflow after bhavcopy pull; https://docs.google.com/spreadsheets/d/1UBLESBcoLqa65uUdlbk72YSlR9HhytoVbl18fKH_GKg/edit?gid=0#gid=0
+  - batch_name: NSE_3000_3500
+    spreadsheet_id: 1v6PosqPBeARNHCLlJYRtTiwpcjB1okkvnyL-4k9QjKg
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 3000-3500
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/1v6PosqPBeARNHCLlJYRtTiwpcjB1okkvnyL-4k9QjKg/edit?gid=0#gid=0
+  - batch_name: NSE_3500_3625
+    spreadsheet_id: 1S_73ZeQTIqnBU5Knk6NWmGYm450bz_-Gve3tyecG3ic
+    gid: 0
+    sheet_name: StockFilter
+    momentum_sheet: Momentum NSE 3500-4000
+    status: ACTIVE
+    notes: https://docs.google.com/spreadsheets/d/1S_73ZeQTIqnBU5Knk6NWmGYm450bz_-Gve3tyecG3ic/edit?gid=0#gid=0
