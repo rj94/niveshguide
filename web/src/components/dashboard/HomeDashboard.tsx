@@ -148,7 +148,6 @@ export function HomeDashboard(props: Props) {
         if (etfs.length) setSectorEtfs(etfs);
         const idx = mapIndices(overview.indices ?? []);
         if (idx.length) setIndices(idx);
-        if (overview.as_of) setAsOf(overview.as_of);
         setLiveHint(`Live · ${clock()}`);
 
         if (momentumRes?.items?.length) {
