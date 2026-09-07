@@ -71,6 +71,69 @@ def _ret_pct(fraction: Any) -> float | None:
     return round(value * 100.0, 4)
 
 
+def _nullable_number(value: Any) -> tuple[bool, float]:
+    parsed = _f(value)
+    return (parsed is None, parsed if parsed is not None else 0.0)
+
+
+def _sort_analysis_rows(
+    items: list[StockAnalysisRow],
+    *,
+    sort_by: str,
+    sort_dir: str,
+) -> list[StockAnalysisRow]:
+    reverse = sort_dir.lower() != "asc"
+    sort_aliases = {
+        "score": "trend_score",
+        "distance": "distance_from_52w_high",
+        "return_3m": "return_3m_pct",
+        "return_6m": "return_6m_pct",
+        "return_1m": "return_1m_pct",
+        "momentum": "momentum_score",
+        "acceleration": "momentum_acceleration",
+        "avg_volume_1w": "avg_volume_1w",
+    }
+    sort_by = sort_aliases.get(sort_by, sort_by)
+    key_map = {
+        "symbol": lambda r: r.symbol,
+        "ltp": lambda r: _nullable_number(r.ltp),
+        "change_pct": lambda r: _nullable_number(r.change_pct),
+        "sma_3": lambda r: _nullable_number(r.sma_3),
+        "sma_7": lambda r: _nullable_number(r.sma_7),
+        "sma_21": lambda r: _nullable_number(r.sma_21),
+        "sma_50": lambda r: _nullable_number(r.sma_50),
+        "sma_200": lambda r: _nullable_number(r.sma_200),
+        "volume_ratio": lambda r: _nullable_number(r.volume_ratio),
+        "avg_volume_1w": lambda r: _nullable_number(r.avg_volume_1w),
+        "return_1m_pct": lambda r: _nullable_number(r.return_1m_pct),
+        "return_3m_pct": lambda r: _nullable_number(r.return_3m_pct),
+        "return_6m_pct": lambda r: _nullable_number(r.return_6m_pct),
+        "distance_from_52w_high": lambda r: _nullable_number(r.distance_from_52w_high),
+        "pe": lambda r: _nullable_number(r.pe),
+        "eps": lambda r: _nullable_number(r.eps),
+        "market_cap": lambda r: _nullable_number(r.market_cap),
+        "trend_score": lambda r: _nullable_number(r.trend_score),
+        "company_strength": lambda r: _nullable_number(r.company_strength),
+        "overall": lambda r: _nullable_number(r.overall),
+        "momentum_score": lambda r: _nullable_number(r.momentum_score),
+        "momentum_acceleration": lambda r: _nullable_number(r.momentum_acceleration),
+        "return_score": lambda r: _nullable_number(r.return_score),
+        "dma_score": lambda r: _nullable_number(r.dma_score),
+        "volume_score": lambda r: _nullable_number(r.volume_score),
+        "result_score": lambda r: _nullable_number(r.result_score),
+        "sector": lambda r: (r.sector or "").lower(),
+        "industry": lambda r: (r.industry or "").lower(),
+    }
+    key_func = key_map.get(sort_by, key_map["symbol"])
+    sorted_items = sorted(items, key=key_func, reverse=reverse)
+    if sort_by in {"symbol", "sector", "industry"} or not reverse:
+        return sorted_items
+
+    present = [item for item in sorted_items if not key_func(item)[0]]
+    missing = [item for item in sorted_items if key_func(item)[0]]
+    return present + missing
+
+
 def list_stocks(
     session: Session,
     *,
@@ -769,52 +832,7 @@ def list_stock_analysis(
         ]
         items = [r for r in items if bool(r.volume_gainer) == volume_gainer]
 
-    reverse = sort_dir.lower() != "asc"
-    # Alias Trade desk sort keys
-    sort_aliases = {
-        "score": "trend_score",
-        "distance": "distance_from_52w_high",
-        "return_3m": "return_3m_pct",
-        "return_6m": "return_6m_pct",
-        "return_1m": "return_1m_pct",
-        "momentum": "momentum_score",
-        "acceleration": "momentum_acceleration",
-        "avg_volume_1w": "avg_volume_1w",
-    }
-    sort_by = sort_aliases.get(sort_by, sort_by)
-    key_map = {
-        "symbol": lambda r: r.symbol,
-        "ltp": lambda r: float(r.ltp) if r.ltp is not None else -1e18,
-        "change_pct": lambda r: r.change_pct if r.change_pct is not None else -1e18,
-        "sma_3": lambda r: float(r.sma_3) if r.sma_3 is not None else -1e18,
-        "sma_7": lambda r: float(r.sma_7) if r.sma_7 is not None else -1e18,
-        "sma_21": lambda r: float(r.sma_21) if r.sma_21 is not None else -1e18,
-        "sma_50": lambda r: float(r.sma_50) if r.sma_50 is not None else -1e18,
-        "sma_200": lambda r: float(r.sma_200) if r.sma_200 is not None else -1e18,
-        "volume_ratio": lambda r: r.volume_ratio if r.volume_ratio is not None else -1e18,
-        "avg_volume_1w": lambda r: r.avg_volume_1w if r.avg_volume_1w is not None else -1e18,
-        "return_1m_pct": lambda r: r.return_1m_pct if r.return_1m_pct is not None else -1e18,
-        "return_3m_pct": lambda r: r.return_3m_pct if r.return_3m_pct is not None else -1e18,
-        "return_6m_pct": lambda r: r.return_6m_pct if r.return_6m_pct is not None else -1e18,
-        "distance_from_52w_high": lambda r: r.distance_from_52w_high if r.distance_from_52w_high is not None else -1e18,
-        "pe": lambda r: float(r.pe) if r.pe is not None else -1e18,
-        "eps": lambda r: float(r.eps) if r.eps is not None else -1e18,
-        "market_cap": lambda r: float(r.market_cap) if r.market_cap is not None else -1e18,
-        "trend_score": lambda r: r.trend_score if r.trend_score is not None else -1,
-        "company_strength": lambda r: float(r.company_strength) if r.company_strength is not None else -1e18,
-        "overall": lambda r: float(r.overall) if r.overall is not None else -1e18,
-        "momentum_score": lambda r: float(r.momentum_score) if r.momentum_score is not None else -1e18,
-        "momentum_acceleration": lambda r: float(r.momentum_acceleration)
-        if r.momentum_acceleration is not None
-        else -1e18,
-        "return_score": lambda r: float(r.return_score) if r.return_score is not None else -1e18,
-        "dma_score": lambda r: float(r.dma_score) if r.dma_score is not None else -1e18,
-        "volume_score": lambda r: float(r.volume_score) if r.volume_score is not None else -1e18,
-        "result_score": lambda r: float(r.result_score) if r.result_score is not None else -1e18,
-        "sector": lambda r: (r.sector or "").lower(),
-        "industry": lambda r: (r.industry or "").lower(),
-    }
-    items.sort(key=key_map.get(sort_by, key_map["symbol"]), reverse=reverse)
+    items = _sort_analysis_rows(items, sort_by=sort_by, sort_dir=sort_dir)
     scanned = min(len(items), scan_limit)
     items = items[:scan_limit]
     total = len(items)

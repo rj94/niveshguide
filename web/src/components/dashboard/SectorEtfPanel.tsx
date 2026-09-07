@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import type { IndexRow } from "@/lib/dashboard-data";
 import { changeHeatColor } from "@/lib/dashboard-data";
@@ -24,7 +24,7 @@ type Props = {
 
 function initials(name: string): string {
   const parts = name
-    .replace(/[/·]/g, " ")
+    .replace(/[/Â·]/g, " ")
     .split(/\s+/)
     .filter(Boolean);
   if (parts.length >= 2) {
@@ -105,10 +105,16 @@ export function SectorEtfPanel({ items, liveHint }: Props) {
         </ul>
       )}
 
-      <div className="border-t border-[var(--line)] px-4 py-2.5">
+      <div className="border-t border-[var(--line)] px-4 py-2.5 flex items-center justify-between gap-2">
+        <Link
+          href="/markets"
+          className="text-xs font-medium text-[var(--accent-hover)] transition hover:text-white"
+        >
+          View all ETFs →
+        </Link>
         <Link
           href="/sectors"
-          className="text-xs font-medium text-[var(--accent-hover)] transition hover:text-white"
+          className="text-xs font-medium text-[var(--ink-muted)] transition hover:text-white"
         >
           Sector analysis →
         </Link>

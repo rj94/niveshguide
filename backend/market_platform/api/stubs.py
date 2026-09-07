@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Header, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from database.session import get_session
-from market_platform.schemas.markets import MarketIndicesResponse, MarketsOverviewResponse
+from market_platform.schemas.markets import MarketEtfsResponse, MarketIndicesResponse, MarketsOverviewResponse
 from market_platform.schemas.news import (
     NewsCategoriesResponse,
     NewsListResponse,
@@ -36,6 +36,11 @@ def markets_overview(db: Session = Depends(get_session)) -> MarketsOverviewRespo
 @router_markets.get("/indices", response_model=MarketIndicesResponse)
 def list_market_indices(db: Session = Depends(get_session)) -> MarketIndicesResponse:
     return markets_service.list_market_indices(db)
+
+
+@router_markets.get("/etfs", response_model=MarketEtfsResponse)
+def list_market_etfs(db: Session = Depends(get_session)) -> MarketEtfsResponse:
+    return markets_service.list_market_etfs(db)
 
 
 @router_sectors.get("", response_model=SectorListResponse)

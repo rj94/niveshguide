@@ -135,6 +135,15 @@ def cmd_scrape_indices(_args) -> None:
     print(json.dumps(result, indent=2, default=str))
 
 
+def cmd_scrape_etfs(args) -> None:
+    from ingestion.sector_etfs import refresh_key_etf_quotes
+
+    session = _session()
+    symbols = [part.strip().upper() for part in (args.symbols or "").split(",") if part.strip()] or None
+    result = refresh_key_etf_quotes(session, symbols=symbols)
+    print(json.dumps(result, indent=2, default=str))
+
+
 def cmd_backfill_index_prices(args) -> None:
     from ingestion.index_price_backfill import backfill_sectoral_index_prices
 
@@ -442,6 +451,12 @@ def build_parser() -> argparse.ArgumentParser:
         "scrape-indices",
         help="Fetch live NSE allIndices quotes into market_indices tables",
     ).set_defaults(func=cmd_scrape_indices)
+    scrape_etfs = sub.add_parser(
+        "scrape-etfs",
+        help="Fetch Yahoo prices for the curated key ETF strip into stock snapshots/prices",
+    )
+    scrape_etfs.add_argument("--symbols", help="Comma-separated ETF symbols. Default: curated key ETFs.")
+    scrape_etfs.set_defaults(func=cmd_scrape_etfs)
 
     backfill_idx = sub.add_parser(
         "backfill-index-prices",

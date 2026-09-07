@@ -42,7 +42,7 @@ function toWatchItems(
 
 export function WatchlistCard({ items: seed }: Props) {
   const [items, setItems] = useState<WatchItem[]>(seed);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(seed.length === 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,9 +86,13 @@ export function WatchlistCard({ items: seed }: Props) {
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {loading && items.length === 0 ? (
         <p className="py-8 text-center text-sm text-[var(--ink-muted)]">
-          {loading ? "Loading watchlist…" : "Watchlist empty. Add symbols on the Watchlist page."}
+          Loading watchlist.
+        </p>
+      ) : items.length === 0 ? (
+        <p className="py-8 text-center text-sm text-[var(--ink-muted)]">
+          Your watchlist is empty. Add symbols to track prices and changes here.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -97,7 +101,7 @@ export function WatchlistCard({ items: seed }: Props) {
             return (
               <Link
                 key={item.symbol}
-                href={`/stocks/${encodeURIComponent(item.symbol)}`}
+                href={`/stocks/${item.symbol}`}
                 className="flex min-h-[88px] flex-col justify-between rounded-lg p-2.5 transition hover:brightness-110"
                 style={{ background: changeHeatColor(item.changePct) }}
               >

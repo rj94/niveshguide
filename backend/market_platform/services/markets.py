@@ -1,4 +1,4 @@
-"""Markets overview: live NSE index levels + equity ETF proxies for sector tiles."""
+﻿"""Markets overview: live NSE index levels + equity ETF proxies for sector tiles."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from database.models import (
 from database.repository import get_stock_by_symbol
 from ingestion.nse_indices import FEATURED_INDICES
 from market_platform.schemas.markets import (
+    MarketEtfsResponse,
     MarketIndicesResponse,
     MarketQuoteCard,
     MarketsOverviewResponse,
@@ -37,10 +38,13 @@ SECTOR_ETFS = (
     ("ITBEES", "IT", "sector", "Information Technology"),
     ("PHARMABEES", "Pharma", "sector", "Healthcare"),
     ("PSUBNKBEES", "PSU Bank", "sector", "Financials"),
+    ("AUTOBEES", "Auto", "sector", "Consumer"),
     ("INFRABEES", "Infra", "sector", "Industrials"),
     ("CONSUMBEES", "Consumption", "sector", "Consumer"),
     ("GOLDBEES", "Gold", "commodity", None),
 )
+
+KEY_ETFS = (*INDEX_ETFS, *SECTOR_ETFS)
 
 # In-process TTL so overview spam does not re-query heavily; scrape is source of truth.
 _LIST_CACHE: tuple[float, list[MarketQuoteCard]] | None = None
@@ -131,6 +135,20 @@ def _card_from_etf(
     )
 
 
+def _key_etf_cards(session: Session) -> tuple[list[MarketQuoteCard], list[MarketQuoteCard]]:
+    sector_etfs: list[MarketQuoteCard] = []
+    commodities: list[MarketQuoteCard] = []
+    for symbol, name, kind, sector_name in SECTOR_ETFS:
+        card = _card_from_etf(session, symbol, name, kind, sector_name=sector_name)
+        if not card:
+            continue
+        if kind == "commodity":
+            commodities.append(card)
+        else:
+            sector_etfs.append(card)
+    return sector_etfs, commodities
+
+
 def _latest_index_snapshot(session: Session, index_id: int) -> MarketIndexSnapshot | None:
     return session.scalar(
         select(MarketIndexSnapshot)
@@ -181,7 +199,7 @@ def _featured_index_cards(session: Session) -> list[MarketQuoteCard]:
         idx = session.scalar(select(MarketIndex).where(MarketIndex.key == key))
         card = _card_from_index(session, idx, display_name=display_name) if idx else None
         if card is None:
-            # Map featured display → ETF fallback by position.
+            # Map featured display â†’ ETF fallback by position.
             etf_map = {name: sym for sym, name, _ in INDEX_ETFS}
             etf_sym = etf_map.get(display_name)
             if etf_sym:
@@ -245,16 +263,7 @@ def markets_overview(session: Session, *, use_cache: bool = True) -> MarketsOver
 
     # Serve from DB snapshots only on the request path (NSE live quotes are too slow/cold).
     # Scheduler / scrape keeps snapshots fresh.
-    sector_etfs: list[MarketQuoteCard] = []
-    commodities: list[MarketQuoteCard] = []
-    for symbol, name, kind, sector_name in SECTOR_ETFS:
-        card = _card_from_etf(session, symbol, name, kind, sector_name=sector_name)
-        if not card:
-            continue
-        if kind == "commodity":
-            commodities.append(card)
-        else:
-            sector_etfs.append(card)
+    sector_etfs, commodities = _key_etf_cards(session)
 
     as_of = None
     for card in (*indices, *sector_etfs, *commodities):
@@ -271,6 +280,32 @@ def markets_overview(session: Session, *, use_cache: bool = True) -> MarketsOver
     _OVERVIEW_CACHE = (now, result)
     if use_cache:
         set_json(redis_key, result.model_dump(mode="json"), 30)
+    return result
+
+
+def list_market_etfs(session: Session, *, use_cache: bool = True) -> MarketEtfsResponse:
+    from cache.redis_cache import PREFIX_MARKETS, get_json, set_json
+
+    redis_key = f"{PREFIX_MARKETS}etfs"
+    if use_cache:
+        cached_payload = get_json(redis_key)
+        if cached_payload is not None:
+            try:
+                return MarketEtfsResponse.model_validate(cached_payload)
+            except Exception:  # noqa: BLE001
+                pass
+
+    cards: list[MarketQuoteCard] = []
+    for symbol, name, kind, *rest in KEY_ETFS:
+        sector_name = rest[0] if rest else None
+        card = _card_from_etf(session, symbol, name, kind, sector_name=sector_name)
+        if card:
+            cards.append(card)
+
+    as_of = next((card.as_of for card in cards if card.as_of), date.today())
+    result = MarketEtfsResponse(items=cards, total=len(cards), as_of=as_of)
+    if use_cache:
+        set_json(redis_key, result.model_dump(mode="json"), 60)
     return result
 
 

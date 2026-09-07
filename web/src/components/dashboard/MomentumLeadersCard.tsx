@@ -44,14 +44,16 @@ export function MomentumLeadersCard({ items, liveHint }: Props) {
         </p>
       ) : (
         <div className="dashboard-scroll flex-1 overflow-x-auto overflow-y-auto">
-          <table className="w-full min-w-[420px] text-left text-sm">
+          <table className="w-full min-w-[360px] text-left text-sm">
             <thead className="sticky top-0 bg-[var(--surface)] text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
               <tr className="border-b border-[var(--line)]">
                 <th className="px-1 py-2 font-medium">#</th>
                 <th className="px-1 py-2 font-medium">Stock</th>
                 <th className="px-1 py-2 text-right font-medium">Price</th>
                 <th className="px-1 py-2 text-right font-medium">Change</th>
-                <th className="px-1 py-2 text-right font-medium">Score</th>
+                <th className="sticky right-0 min-w-[3.5rem] bg-[var(--surface)] pl-2 pr-1 py-2 text-right font-medium">
+                  Score
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +69,7 @@ export function MomentumLeadersCard({ items, liveHint }: Props) {
                     </td>
                     <td className="px-1 py-2.5">
                       <Link
-                        href={`/stocks/${encodeURIComponent(row.symbol)}`}
+                        href={`/stocks/${row.symbol}`}
                         className="block min-w-0"
                       >
                         <span className="block truncate font-medium text-[var(--ink)]">
@@ -79,7 +81,7 @@ export function MomentumLeadersCard({ items, liveHint }: Props) {
                       </Link>
                     </td>
                     <td className="px-1 py-2.5 text-right tabular-nums text-[var(--ink)]">
-                      {row.ltp != null ? formatNumber(row.ltp) : "—"}
+                      {row.ltp != null ? formatNumber(row.ltp) : "-"}
                     </td>
                     <td
                       className={cn(
@@ -91,9 +93,9 @@ export function MomentumLeadersCard({ items, liveHint }: Props) {
                             : "text-[var(--down)]",
                       )}
                     >
-                      {row.changePct != null ? formatPct(row.changePct) : "—"}
+                      {row.changePct != null ? formatPct(row.changePct) : "-"}
                     </td>
-                    <td className="px-1 py-2.5 text-right text-base font-semibold tabular-nums text-[var(--accent)]">
+                    <td className="sticky right-0 min-w-[3.5rem] bg-[var(--surface)] pl-2 pr-1 py-2.5 text-right text-base font-semibold tabular-nums text-[var(--accent)]">
                       {Math.round(row.score)}
                     </td>
                   </tr>

@@ -17,6 +17,7 @@ def api_v1_index() -> dict:
             "/strategies",
             "/markets/overview",
             "/markets/indices",
+            "/markets/etfs",
             "/sectors",
             "/watchlists/me",
             "/portfolio/me",

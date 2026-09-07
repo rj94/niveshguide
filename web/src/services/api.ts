@@ -1,4 +1,4 @@
-import type { MarketsOverviewResponse } from "@/types/markets";
+import type { MarketEtfsResponse, MarketsOverviewResponse } from "@/types/markets";
 import type {
   NewsCategoriesResponse,
   NewsEventCard,
@@ -198,6 +198,10 @@ export async function runStrategy(
 
 export async function getMarketsOverview(): Promise<MarketsOverviewResponse> {
   return apiFetch<MarketsOverviewResponse>("/markets/overview");
+}
+
+export async function listMarketEtfs(): Promise<MarketEtfsResponse> {
+  return apiFetch<MarketEtfsResponse>("/markets/etfs");
 }
 
 export async function listNews(params?: NewsQuery): Promise<NewsListResponse> {

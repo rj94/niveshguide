@@ -29,10 +29,14 @@ META = StrategyMeta(
 
 
 def score_canslim(row: StrategyInput, *, market_uptrend: bool) -> StrategyResult:
-    # Growth fields in DB are typically percent points (25 = 25%)
-    eps_q = row.pat_growth_yoy
-    rev_q = row.revenue_growth_yoy
+    # C (Current): QoQ growth only — never silently substitute YoY
+    eps_q = row.pat_growth_qoq
+    rev_q = row.revenue_growth_qoq
+    # A (Annual): real 3Y CAGR when present; else YoY as annual checklist proxy only
     eps_cagr = row.eps_cagr_3y
+    eps_yoy = row.pat_growth_yoy
+    a_growth = eps_cagr if eps_cagr is not None else eps_yoy
+    a_growth_label = "EPS CAGR 3Y" if eps_cagr is not None else "EPS/PAT YoY"
     roe = row.roe
     rs = rs_proxy(row)
     vol = row.volume_ratio
@@ -50,7 +54,7 @@ def score_canslim(row: StrategyInput, *, market_uptrend: bool) -> StrategyResult
     else:
         c_state = "fail"
 
-    a_eps = pct_state(eps_cagr, 25, 15)
+    a_eps = pct_state(a_growth, 25, 15)
     a_roe = pct_state(roe, 17, 12)
     if a_eps == "pass" and a_roe in ("pass", "partial", "unknown"):
         a_state = "pass"
@@ -113,7 +117,7 @@ def score_canslim(row: StrategyInput, *, market_uptrend: bool) -> StrategyResult
             "C",
             "Current Earnings",
             c_state,
-            detail=_fmt_growth("EPS/PAT YoY", eps_q, "Sales YoY", rev_q),
+            detail=_fmt_growth("EPS/PAT QoQ", eps_q, "Sales QoQ", rev_q),
             value=eps_q,
             weight=1.2,
         ),
@@ -121,8 +125,8 @@ def score_canslim(row: StrategyInput, *, market_uptrend: bool) -> StrategyResult
             "A",
             "Annual Earnings",
             a_state,
-            detail=_fmt_growth("EPS CAGR 3Y", eps_cagr, "ROE", roe),
-            value=eps_cagr,
+            detail=_fmt_growth(a_growth_label, a_growth, "ROE", roe),
+            value=a_growth,
             weight=1.2,
         ),
         StrategyCriterion("N", "New Highs", n_state, detail=n_detail, value=near_high, weight=1.0),
@@ -157,8 +161,10 @@ def score_canslim(row: StrategyInput, *, market_uptrend: bool) -> StrategyResult
         checklist=criteria,
         metrics={
             "eps_qoq": eps_q,
-            "eps_yoy": eps_cagr,
-            "revenue_growth_yoy": rev_q,
+            "eps_yoy": eps_yoy,
+            "eps_cagr_3y": eps_cagr,
+            "revenue_growth_qoq": rev_q,
+            "revenue_growth_yoy": row.revenue_growth_yoy,
             "roe": roe,
             "rs_rating": rs,
             "relative_volume": vol,

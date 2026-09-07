@@ -35,3 +35,9 @@ class MarketsOverviewResponse(BaseModel):
 class MarketIndicesResponse(BaseModel):
     items: list[MarketQuoteCard] = Field(default_factory=list)
     as_of: date | None = None
+
+
+class MarketEtfsResponse(BaseModel):
+    items: list[MarketQuoteCard] = Field(default_factory=list)
+    total: int = 0
+    as_of: date | None = None

@@ -24,3 +24,9 @@ export type MarketsOverviewResponse = {
   sectors: MarketQuoteCard[];
   as_of: string | null;
 };
+
+export type MarketEtfsResponse = {
+  items: MarketQuoteCard[];
+  total: number;
+  as_of: string | null;
+};

@@ -39,6 +39,7 @@
   margin-left: 0;
   margin-right: 0;
   padding: var(--page-pad-y) var(--page-pad-x);
+  padding-bottom: calc(var(--ticker-h) + 12px);
 }
 
 @theme inline {
@@ -111,4 +112,27 @@ body {
 
 .ticker-track:hover {
   animation-play-state: paused;
+}
+
+
+/* Marketing homepage */
+.marketing-root {
+  min-height: 100%;
+  background: #080b0f;
+  color: #f8fafc;
+}
+
+.marketing-hero-glow {
+  background:
+    radial-gradient(ellipse 80% 60% at 70% 40%, rgba(16, 185, 129, 0.25), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(52, 211, 153, 0.15), transparent 55%);
+}
+
+.marketing-cta-bars {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.12) 0 6px,
+    transparent 6px 14px
+  );
+  mask-image: linear-gradient(90deg, transparent, black 40%);
 }

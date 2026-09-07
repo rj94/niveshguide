@@ -183,7 +183,7 @@ export function HomeDashboard(props: Props) {
 
       <PageAd page="dashboard" />
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[260px_minmax(0,1.4fr)_minmax(0,0.9fr)]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-[260px_minmax(0,1.4fr)_minmax(0,0.9fr)]">
         <SectorEtfPanel items={sectorEtfs} liveHint={liveHint} />
         <MomentumLeadersCard items={momentum} liveHint={momentumHint} />
         <MarketMovers

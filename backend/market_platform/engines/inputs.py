@@ -64,6 +64,8 @@ class StrategyInput:
     as_of: date | None
     revenue_growth_yoy: float | None = None
     pat_growth_yoy: float | None = None
+    revenue_growth_qoq: float | None = None
+    pat_growth_qoq: float | None = None
     eps_cagr_3y: float | None = None
     revenue_cagr_3y: float | None = None
     roe: float | None = None
@@ -184,6 +186,20 @@ def _row_from_trade(
     # Prefer growth from indicator (fractions) → percent for engines
     rev_yoy = _frac_to_pct(_f(indicator.revenue_growth_yoy) if indicator else None)
     pat_yoy = _frac_to_pct(_f(indicator.pat_growth_yoy) if indicator else None)
+    rev_qoq = _frac_to_pct(_f(indicator.revenue_growth_qoq) if indicator else None)
+    pat_qoq = _frac_to_pct(_f(indicator.pat_growth_qoq) if indicator else None)
+    # No dedicated CAGR columns on StockIndicator / StockFundamental yet
+    eps_cagr = None
+    rev_cagr = None
+    if fundamental is not None:
+        eps_cagr = _frac_to_pct(_f(getattr(fundamental, 'eps_cagr_3y', None)))
+        if rev_cagr is None:
+            rev_cagr = _frac_to_pct(_f(getattr(fundamental, 'revenue_cagr_3y', None)))
+    if indicator is not None:
+        if eps_cagr is None:
+            eps_cagr = _frac_to_pct(_f(getattr(indicator, 'eps_cagr_3y', None)))
+        if rev_cagr is None:
+            rev_cagr = _frac_to_pct(_f(getattr(indicator, 'revenue_cagr_3y', None)))
 
     fii = _f(ownership.fii_pct) if ownership else None
     dii = _f(ownership.dii_pct) if ownership else None
@@ -215,8 +231,10 @@ def _row_from_trade(
         as_of=indicator.calculation_date if indicator else (snapshot.snapshot_date if snapshot else None),
         revenue_growth_yoy=rev_yoy,
         pat_growth_yoy=pat_yoy,
-        eps_cagr_3y=pat_yoy,  # proxy until dedicated CAGR is stored
-        revenue_cagr_3y=rev_yoy,
+        revenue_growth_qoq=rev_qoq,
+        pat_growth_qoq=pat_qoq,
+        eps_cagr_3y=eps_cagr,  # real CAGR only; never proxy with YoY
+        revenue_cagr_3y=rev_cagr,
         roe=roe,
         debt_equity=de,
         pe_ttm=pe,

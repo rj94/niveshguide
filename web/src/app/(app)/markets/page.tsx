@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { Sparkline } from "@/components/dashboard/Sparkline";
-import { getMarketsOverview } from "@/services/api";
 import { formatNumber, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { getMarketsOverview, listMarketEtfs } from "@/services/api";
 import type { MarketQuoteCard, MarketsOverviewResponse } from "@/types/markets";
 
 function num(value: string | number | null): number | null {
@@ -21,14 +21,21 @@ function QuoteCard({ card, index }: { card: MarketQuoteCard; index: number }) {
   return (
     <article
       className="animate-[fade-up_0.45s_ease_both] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3.5"
-      style={{ animationDelay: `${index * 30}ms` }}
+      style={{ animationDelay: `${Math.min(index, 20) * 20}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--ink-muted)]">
             {card.symbol}
           </p>
-          <p className="mt-0.5 truncate text-xs font-medium text-[var(--ink)]">{card.name}</p>
+          <p className="mt-0.5 truncate text-xs font-medium text-[var(--ink)]">
+            {card.name}
+          </p>
+          {card.sector_name ? (
+            <p className="mt-1 truncate text-[10px] text-[var(--ink-muted)]">
+              {card.sector_name}
+            </p>
+          ) : null}
         </div>
         {card.exchange ? (
           <span className="shrink-0 rounded-md border border-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--ink-muted)]">
@@ -41,9 +48,17 @@ function QuoteCard({ card, index }: { card: MarketQuoteCard; index: number }) {
           <p className="text-lg font-semibold tabular-nums tracking-tight text-[var(--ink)]">
             {formatNumber(num(card.value), { maximumFractionDigits: 2 })}
           </p>
-          <p className={cn("mt-1 text-xs tabular-nums", up ? "text-[var(--up)]" : "text-[var(--down)]")}>
-            {formatNumber(num(card.change), { maximumFractionDigits: 2, signDisplay: "always" })} (
-            {formatPct(card.change_pct)})
+          <p
+            className={cn(
+              "mt-1 text-xs tabular-nums",
+              up ? "text-[var(--up)]" : "text-[var(--down)]",
+            )}
+          >
+            {formatNumber(num(card.change), {
+              maximumFractionDigits: 2,
+              signDisplay: "always",
+            })}{" "}
+            ({formatPct(card.change_pct)})
           </p>
         </div>
         {card.sparkline.length > 1 ? (
@@ -65,14 +80,19 @@ function SectorRow({ card }: { card: MarketQuoteCard }) {
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-[var(--ink)]">{card.name}</p>
         <p className="text-xs text-[var(--ink-muted)]">
-          {card.rotation_state ?? "—"} · 1M ret {formatPct(num(card.return_1m))}
+          {card.rotation_state ?? "-"} - 1M ret {formatPct(num(card.return_1m))}
         </p>
       </div>
       <div className="text-right">
         <p className="text-sm font-semibold tabular-nums text-[var(--ink)]">
           {formatNumber(num(card.score), { maximumFractionDigits: 0 })}
         </p>
-        <p className={cn("text-xs tabular-nums", up ? "text-[var(--up)]" : "text-[var(--down)]")}>
+        <p
+          className={cn(
+            "text-xs tabular-nums",
+            up ? "text-[var(--up)]" : "text-[var(--down)]",
+          )}
+        >
           {formatNumber(change, { maximumFractionDigits: 1, signDisplay: "always" })} 1W
         </p>
       </div>
@@ -93,19 +113,36 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function MarketsPage() {
   const [data, setData] = useState<MarketsOverviewResponse | null>(null);
+  const [etfs, setEtfs] = useState<MarketQuoteCard[]>([]);
+  const [etfTotal, setEtfTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getMarketsOverview()
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message || "Failed to load markets overview");
-      });
+
+    async function load() {
+      try {
+        const [overview, etfRes] = await Promise.all([
+          getMarketsOverview(),
+          listMarketEtfs().catch(() => null),
+        ]);
+        if (cancelled) return;
+        setData(overview);
+        setEtfs(etfRes?.items ?? overview.sector_etfs);
+        setEtfTotal(etfRes?.total ?? overview.sector_etfs.length);
+        setError(null);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load markets overview");
+        }
+      }
+    }
+
+    load();
+    const id = window.setInterval(load, 30_000);
     return () => {
       cancelled = true;
+      window.clearInterval(id);
     };
   }, []);
 
@@ -119,7 +156,7 @@ export default function MarketsPage() {
   if (!data) {
     return (
       <div className="page-shell mx-auto max-w-3xl py-12 text-center text-sm text-[var(--ink-muted)]">
-        Loading markets…
+        Loading markets...
       </div>
     );
   }
@@ -129,7 +166,9 @@ export default function MarketsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">Markets</h1>
         {data.as_of ? (
-          <p className="mt-1 text-xs text-[var(--ink-muted)]">Live from market DB · as of {data.as_of}</p>
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">
+            Live from market DB - as of {data.as_of}
+          </p>
         ) : null}
       </div>
 
@@ -142,22 +181,24 @@ export default function MarketsPage() {
           </div>
         ) : (
           <p className="text-sm text-[var(--ink-muted)]">
-            No index quotes yet — run <code>python -m cli scrape-indices</code>.
+            No index quotes yet. Run <code>python -m cli scrape-indices</code>.
           </p>
         )}
       </Section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
-          <Section title="Sector ETFs">
-            {data.sector_etfs.length ? (
+          <Section title={`Key ETFs${etfTotal ? ` (${etfTotal})` : ""}`}>
+            {etfs.length ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {data.sector_etfs.map((card, i) => (
+                {etfs.map((card, i) => (
                   <QuoteCard key={card.id} card={card} index={i} />
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-[var(--ink-muted)]">No sector ETF quotes yet.</p>
+              <p className="text-sm text-[var(--ink-muted)]">
+                No ETF quotes yet. Run <code>python -m cli scrape-etfs</code>.
+              </p>
             )}
           </Section>
 
@@ -169,9 +210,7 @@ export default function MarketsPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-[var(--ink-muted)]">
-                No commodity quotes yet — run <code>seed_commodities.py</code>.
-              </p>
+              <p className="text-sm text-[var(--ink-muted)]">No commodity quotes yet.</p>
             )}
           </Section>
         </div>
@@ -182,7 +221,7 @@ export default function MarketsPage() {
               data.sectors.map((card) => <SectorRow key={card.id} card={card} />)
             ) : (
               <p className="px-3 py-4 text-sm text-[var(--ink-muted)]">
-                No sector scores yet — run <code>compute_scores.py</code>.
+                No sector scores yet.
               </p>
             )}
           </div>

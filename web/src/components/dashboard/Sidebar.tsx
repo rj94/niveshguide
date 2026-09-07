@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/desk", label: "Desk", icon: LayoutDashboard },
   { href: "/screener", label: "Screeners", icon: Search },
   { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/volume-gainer", label: "Volume", icon: Activity },

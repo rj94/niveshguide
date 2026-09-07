@@ -59,6 +59,23 @@ def run_sheet_sync() -> dict:
         session.close()
 
 
+def run_key_etf_refresh() -> dict:
+    """Refresh the small home/markets ETF strip from Yahoo every market-hours interval."""
+    session = SessionLocal()
+    try:
+        from ingestion.sector_etfs import refresh_key_etf_quotes
+
+        logger.info("key_etf_refresh starting")
+        result = refresh_key_etf_quotes(session)
+        logger.info("key_etf_refresh finished: %s", result)
+        return result
+    except Exception:
+        logger.exception("key_etf_refresh failed")
+        raise
+    finally:
+        session.close()
+
+
 def run_daily_update() -> dict:
     """End-of-day: optional NSE indices scrape, then sheet sync + calculate."""
     session = SessionLocal()
@@ -167,6 +184,18 @@ def start_scheduler() -> BackgroundScheduler:
             timezone=tz,
         ),
         id="sheet_sync_15m",
+        replace_existing=True,
+        **_JOB_DEFAULTS,
+    )
+    _scheduler.add_job(
+        run_key_etf_refresh,
+        CronTrigger(
+            minute="*/15",
+            hour="9-15",
+            day_of_week="mon-fri",
+            timezone=tz,
+        ),
+        id="key_etf_refresh_15m",
         replace_existing=True,
         **_JOB_DEFAULTS,
     )
