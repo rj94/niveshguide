@@ -145,10 +145,14 @@ def cmd_scrape_etfs(args) -> None:
 
 
 def cmd_backfill_index_prices(args) -> None:
-    from ingestion.index_price_backfill import backfill_sectoral_index_prices
+    from ingestion.index_price_backfill import backfill_index_prices
+    from ingestion.nse_indices import FEATURED_INDICES
 
     session = _session()
-    result = backfill_sectoral_index_prices(session, period=args.period)
+    # Include FEATURED_INDICES so home sparklines have real history (not 2-point slopes).
+    featured = [key for key, _ in FEATURED_INDICES]
+    result = backfill_index_prices(session, period=args.period, keys=None)
+    result["featured_requested"] = featured
     print(json.dumps(result, indent=2, default=str))
 
 
@@ -460,7 +464,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     backfill_idx = sub.add_parser(
         "backfill-index-prices",
-        help="Backfill ~1y daily closes for Nifty sectoral indices (Yahoo) for official 3M returns",
+        help="Backfill ~1y daily closes for sectoral + featured indices (Yahoo) for 3M returns / sparklines",
     )
     backfill_idx.add_argument("--period", default="1y")
     backfill_idx.set_defaults(func=cmd_backfill_index_prices)

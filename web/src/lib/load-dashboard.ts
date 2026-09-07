@@ -16,9 +16,14 @@ import {
   screenStocks,
 } from "@/services/api";
 import type { MarketQuoteCard } from "@/types/markets";
-import type { StrengthRow } from "@/types/sector";
 import type { StockAnalysisRow } from "@/types/stock";
 import type { MomentumLeader } from "@/components/dashboard/MomentumLeadersCard";
+import { filterMovers } from "@/lib/movers-filter";
+import {
+  buildRotationItems,
+  mapSectorCell,
+  rankSectorsForPerformance,
+} from "@/lib/sector-rotation";
 
 function num(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -147,14 +152,14 @@ async function loadMovers(): Promise<{
       exchange: "NSE",
       sort_by: "change_pct",
       sort_dir: "desc",
-      limit: 8,
+      limit: 24,
       scan_limit: 2000,
     }).catch(() => null),
     screenStocks({
       exchange: "NSE",
       sort_by: "change_pct",
       sort_dir: "asc",
-      limit: 8,
+      limit: 24,
       scan_limit: 2000,
     }).catch(() => null),
     screenStocks({
@@ -162,21 +167,20 @@ async function loadMovers(): Promise<{
       volume_mover: true,
       sort_by: "volume_ratio",
       sort_dir: "desc",
-      limit: 8,
+      limit: 16,
       scan_limit: 2000,
     }).catch(() => null),
   ]);
 
-  const map = (rows: StockAnalysisRow[] | undefined) =>
+  const mapRaw = (rows: StockAnalysisRow[] | undefined) =>
     (rows ?? [])
       .map(moverFromAnalysis)
-      .filter((x): x is MoverRow => x !== null)
-      .slice(0, 5);
+      .filter((x): x is MoverRow => x !== null);
 
   return {
-    gainers: map(gainersRes?.items),
-    losers: map(losersRes?.items),
-    byVolume: map(volumeRes?.items),
+    gainers: filterMovers(mapRaw(gainersRes?.items), { softGainers: true, limit: 5 }),
+    losers: filterMovers(mapRaw(losersRes?.items), { limit: 5 }),
+    byVolume: filterMovers(mapRaw(volumeRes?.items), { volumeMover: true, limit: 5 }),
   };
 }
 
@@ -250,62 +254,12 @@ export async function loadDashboard(): Promise<DashboardPayload> {
   const watchlist = await loadWatchlistSeed();
   const ticker = await loadTickerItems();
 
-  const mapSectorCell = (s: StrengthRow): SectorCell => ({
-    name: s.name,
-    score: num(s.strength_score) ?? 0,
-    scoreChange1w: num(s.score_change_1w),
-    return3m: num(s.return_3m),
-    return3mCw: num(s.return_3m_cw),
-    return3mSource: s.return_3m_source,
-  });
-
-  const mapRotation = (s: StrengthRow): RotationItem => ({
-    id: s.name,
-    name: s.name,
-    score: num(s.strength_score) ?? 0,
-    scoreChange: num(s.return_3m),
-    return3mCw: num(s.return_3m_cw),
-    return3mSource: s.return_3m_source,
-    state: s.rotation_state,
-  });
-
-  const sectors: SectorCell[] = (sectorsRes?.items ?? []).slice(0, 12).map(mapSectorCell);
-
-  // Rotation = transition movers (Improving / Weakening), not the same top-strength list
   const allSectorRows = sectorsRes?.items ?? [];
-  const byState = (state: string) =>
-    allSectorRows
-      .filter((s) => (s.rotation_state || "").toLowerCase() === state.toLowerCase())
-      .sort((a, b) => {
-        const ma = Math.abs(num(a.momentum_score) ?? 0);
-        const mb = Math.abs(num(b.momentum_score) ?? 0);
-        if (mb !== ma) return mb - ma;
-        return (num(b.strength_score) ?? 0) - (num(a.strength_score) ?? 0);
-      });
-
-  const rotation: RotationItem[] = [];
-  const seen = new Set<string>();
-  for (const state of ["Improving", "Weakening"] as const) {
-    for (const row of byState(state)) {
-      if (seen.has(row.name)) continue;
-      rotation.push(mapRotation(row));
-      seen.add(row.name);
-      if (rotation.length >= 8) break;
-    }
-    if (rotation.length >= 8) break;
-  }
-  if (rotation.length < 5) {
-    for (const state of ["Leading", "Lagging"] as const) {
-      for (const row of byState(state)) {
-        if (seen.has(row.name)) continue;
-        if (sectors.some((c) => c.name === row.name) && rotation.length >= 3) continue;
-        rotation.push(mapRotation(row));
-        seen.add(row.name);
-        if (rotation.length >= 5) break;
-      }
-      if (rotation.length >= 5) break;
-    }
-  }
+  const sectors: SectorCell[] = rankSectorsForPerformance(allSectorRows, 12);
+  const rotation: RotationItem[] = buildRotationItems(allSectorRows, {
+    preferDistinctFrom: sectors,
+    max: 8,
+  });
 
   const momentumLeaders: MomentumLeader[] = (momentumRes?.items ?? [])
     .map((row: StockAnalysisRow) => {

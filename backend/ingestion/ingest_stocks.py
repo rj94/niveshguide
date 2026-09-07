@@ -108,13 +108,28 @@ def ingest_momentum_history(session: Session, rows: list[list[Any]], ingest_days
     return stored
 
 
+def _yahoo_ticker(symbol: str) -> str:
+    """Map DB/UI symbols to Yahoo tickers.
+
+    Equity NSE names get `.NS`. Futures (`CL=F`), indices (`^NSEI`), and
+    already-suffixed tickers are passed through unchanged.
+    """
+    s = (symbol or "").strip()
+    if not s:
+        return s
+    if s.startswith("^") or "=" in s or s.endswith(".NS") or s.endswith(".BO"):
+        return s
+    return f"{s}.NS"
+
+
 def fetch_yahoo_history(symbols: list[str], period: str = "1y") -> dict[str, list[dict[str, Any]]]:
-    """Backfill OHLCV from Yahoo Finance (NSE suffix .NS)."""
+    """Backfill OHLCV from Yahoo Finance (NSE `.NS` or raw Yahoo symbols)."""
     import yfinance as yf
 
     if not symbols:
         return {}
-    tickers = " ".join(f"{symbol}.NS" for symbol in symbols)
+    ticker_by_symbol = {symbol: _yahoo_ticker(symbol) for symbol in symbols}
+    tickers = " ".join(ticker_by_symbol.values())
     frame = yf.download(
         tickers,
         period=period,
@@ -127,30 +142,7 @@ def fetch_yahoo_history(symbols: list[str], period: str = "1y") -> dict[str, lis
     if frame.empty:
         return result
 
-    if len(symbols) == 1:
-        symbol = symbols[0]
-        for idx, row in frame.iterrows():
-            close = parse_number(row.get("Close"))
-            if close is None:
-                continue
-            result[symbol].append(
-                {
-                    "price_date": idx.date() if hasattr(idx, "date") else idx,
-                    "open": parse_number(row.get("Open")),
-                    "high": parse_number(row.get("High")),
-                    "low": parse_number(row.get("Low")),
-                    "close": close,
-                    "volume": int(row["Volume"]) if parse_number(row.get("Volume")) is not None else None,
-                }
-            )
-        return result
-
-    for symbol in symbols:
-        key = f"{symbol}.NS"
-        if key not in frame.columns.get_level_values(0) and symbol not in frame.columns.get_level_values(0):
-            continue
-        subset_key = key if key in frame.columns.get_level_values(0) else symbol
-        subset = frame[subset_key]
+    def _append_rows(symbol: str, subset) -> None:
         for idx, row in subset.iterrows():
             close = parse_number(row.get("Close"))
             if close is None:
@@ -165,6 +157,22 @@ def fetch_yahoo_history(symbols: list[str], period: str = "1y") -> dict[str, lis
                     "volume": int(row["Volume"]) if parse_number(row.get("Volume")) is not None else None,
                 }
             )
+
+    if len(symbols) == 1:
+        symbol = symbols[0]
+        _append_rows(symbol, frame)
+        return result
+
+    level0 = frame.columns.get_level_values(0)
+    for symbol in symbols:
+        ykey = ticker_by_symbol[symbol]
+        if ykey in level0:
+            subset_key = ykey
+        elif symbol in level0:
+            subset_key = symbol
+        else:
+            continue
+        _append_rows(symbol, frame[subset_key])
     return result
 
 

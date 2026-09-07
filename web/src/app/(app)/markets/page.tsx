@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { formatNumber, formatPct } from "@/lib/format";
@@ -111,7 +112,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function MarketsPage() {
+function MarketsPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab = (searchParams.get("tab") || "etfs").toLowerCase() === "commodities" ? "commodities" : "etfs";
+
   const [data, setData] = useState<MarketsOverviewResponse | null>(null);
   const [etfs, setEtfs] = useState<MarketQuoteCard[]>([]);
   const [etfTotal, setEtfTotal] = useState(0);
@@ -128,8 +134,10 @@ export default function MarketsPage() {
         ]);
         if (cancelled) return;
         setData(overview);
-        setEtfs(etfRes?.items ?? overview.sector_etfs);
-        setEtfTotal(etfRes?.total ?? overview.sector_etfs.length);
+        // Equity/sector ETFs only in ETF tab (exclude commodity kind if present)
+        const items = (etfRes?.items ?? overview.sector_etfs).filter((c) => c.kind !== "commodity");
+        setEtfs(items);
+        setEtfTotal(etfRes?.total ?? items.length);
         setError(null);
       } catch (err) {
         if (!cancelled) {
@@ -145,6 +153,16 @@ export default function MarketsPage() {
       window.clearInterval(id);
     };
   }, []);
+
+  const setTab = (next: "etfs" | "commodities") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "etfs") params.delete("tab");
+    else params.set("tab", "commodities");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const commodityCards = useMemo(() => data?.commodities ?? [], [data]);
 
   if (error) {
     return (
@@ -188,31 +206,63 @@ export default function MarketsPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
-          <Section title={`Key ETFs${etfTotal ? ` (${etfTotal})` : ""}`}>
-            {etfs.length ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {etfs.map((card, i) => (
-                  <QuoteCard key={card.id} card={card} index={i} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-[var(--ink-muted)]">
-                No ETF quotes yet. Run <code>python -m cli scrape-etfs</code>.
-              </p>
-            )}
-          </Section>
+          <div className="flex items-center gap-2 border-b border-[var(--line)] pb-2">
+            <button
+              type="button"
+              onClick={() => setTab("etfs")}
+              className={
+                tab === "etfs"
+                  ? "rounded-md bg-[var(--surface)] px-3 py-1.5 text-sm font-semibold text-[var(--ink)]"
+                  : "rounded-md px-3 py-1.5 text-sm font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }
+            >
+              ETFs
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("commodities")}
+              className={
+                tab === "commodities"
+                  ? "rounded-md bg-[var(--surface)] px-3 py-1.5 text-sm font-semibold text-[var(--ink)]"
+                  : "rounded-md px-3 py-1.5 text-sm font-medium text-[var(--ink-muted)] hover:text-[var(--ink)]"
+              }
+            >
+              Commodities
+            </button>
+          </div>
 
-          <Section title="Commodities & FX">
-            {data.commodities.length ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {data.commodities.map((card, i) => (
-                  <QuoteCard key={card.id} card={card} index={i} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-[var(--ink-muted)]">No commodity quotes yet.</p>
-            )}
-          </Section>
+          {tab === "etfs" ? (
+            <Section title={`Key ETFs${etfTotal ? ` (${etfs.length})` : ""}`}>
+              {etfs.length ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {etfs.map((card, i) => (
+                    <QuoteCard key={card.id} card={card} index={i} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--ink-muted)]">
+                  No ETF quotes yet. Run <code>python -m cli scrape-etfs</code>.
+                </p>
+              )}
+            </Section>
+          ) : (
+            <Section title={`Commodities${commodityCards.length ? ` (${commodityCards.length})` : ""}`}>
+              <p className="mb-3 text-xs text-[var(--ink-muted)]">
+                India ETFs (Gold ETF, Silver ETF) plus Yahoo futures proxies for oil, gas, and copper.
+              </p>
+              {commodityCards.length ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {commodityCards.map((card, i) => (
+                    <QuoteCard key={card.id} card={card} index={i} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--ink-muted)]">
+                  No commodity quotes yet. Run <code>python -m cli scrape-etfs</code>.
+                </p>
+              )}
+            </Section>
+          )}
         </div>
 
         <Section title="Sector strength movers">
@@ -228,5 +278,19 @@ export default function MarketsPage() {
         </Section>
       </div>
     </div>
+  );
+}
+
+export default function MarketsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="page-shell mx-auto max-w-3xl py-12 text-center text-sm text-[var(--ink-muted)]">
+          Loading markets...
+        </div>
+      }
+    >
+      <MarketsPageInner />
+    </Suspense>
   );
 }

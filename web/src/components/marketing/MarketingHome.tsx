@@ -19,9 +19,13 @@ import { MarketingSearch } from "@/components/marketing/MarketingSearch";
 import { avatarColor, type IndexCard, type IndexRow, type MoverRow, type RotationItem, type SectorCell } from "@/lib/dashboard-data";
 import type { DashboardPayload, SectorEtfRow } from "@/lib/load-dashboard";
 import { formatNumber, formatPct } from "@/lib/format";
+import { filterMovers } from "@/lib/movers-filter";
+import {
+  buildRotationItems,
+  rankSectorsForPerformance,
+} from "@/lib/sector-rotation";
 import { cn } from "@/lib/utils";
 import { getMarketsOverview, listSectors, screenStocks } from "@/services/api";
-import type { StrengthRow } from "@/types/sector";
 import type { StockAnalysisRow } from "@/types/stock";
 
 const NAV_LINKS = [
@@ -66,29 +70,6 @@ function mapMover(row: StockAnalysisRow): MoverRow | null {
   return { symbol: row.symbol, name: row.company_name, price, changePct: row.change_pct, color: avatarColor(row.symbol) };
 }
 
-function mapSector(row: StrengthRow): SectorCell {
-  return {
-    name: row.name,
-    score: num(row.strength_score) ?? 0,
-    scoreChange1w: num(row.score_change_1w),
-    return3m: num(row.return_3m),
-    return3mCw: num(row.return_3m_cw),
-    return3mSource: row.return_3m_source,
-  };
-}
-
-function mapRotation(row: StrengthRow): RotationItem {
-  return {
-    id: row.name,
-    name: row.name,
-    score: num(row.strength_score) ?? 0,
-    scoreChange: num(row.return_3m),
-    return3mCw: num(row.return_3m_cw),
-    return3mSource: row.return_3m_source,
-    state: row.rotation_state,
-  };
-}
-
 export function MarketingHome({ data }: { data: DashboardPayload }) {
   const [state, setState] = useState<HomeState>(data);
   const [liveLabel, setLiveLabel] = useState("Live");
@@ -101,9 +82,9 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
           getMarketsOverview(),
           listSectors({ limit: 80, min_constituents: 3 }).catch(() => null),
           screenStocks({ exchange: "NSE", sort_by: "momentum_score", sort_dir: "desc", limit: 12, scan_limit: 2000 }).catch(() => null),
-          screenStocks({ exchange: "NSE", sort_by: "change_pct", sort_dir: "desc", limit: 8, scan_limit: 2000 }).catch(() => null),
-          screenStocks({ exchange: "NSE", sort_by: "change_pct", sort_dir: "asc", limit: 8, scan_limit: 2000 }).catch(() => null),
-          screenStocks({ exchange: "NSE", volume_mover: true, sort_by: "volume_ratio", sort_dir: "desc", limit: 8, scan_limit: 2000 }).catch(() => null),
+          screenStocks({ exchange: "NSE", sort_by: "change_pct", sort_dir: "desc", limit: 24, scan_limit: 2000 }).catch(() => null),
+          screenStocks({ exchange: "NSE", sort_by: "change_pct", sort_dir: "asc", limit: 24, scan_limit: 2000 }).catch(() => null),
+          screenStocks({ exchange: "NSE", volume_mover: true, sort_by: "volume_ratio", sort_dir: "desc", limit: 16, scan_limit: 2000 }).catch(() => null),
         ]);
         if (cancelled) return;
 
@@ -157,8 +138,8 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
           indices: indices.length ? indices : current.indices,
           sectorEtfs: sectorEtfs.length ? sectorEtfs : current.sectorEtfs,
           indexRows: indexRows.length ? indexRows : current.indexRows,
-          sectors: (sectorsRes?.items ?? []).slice(0, 12).map(mapSector),
-          rotation: (sectorsRes?.items ?? []).slice(0, 8).map(mapRotation),
+          sectors: rankSectorsForPerformance(sectorsRes?.items ?? [], 12),
+          rotation: buildRotationItems(sectorsRes?.items ?? [], { max: 8 }),
           momentumLeaders: (momentumRes?.items ?? [])
             .map((row) => {
               const score = num(row.momentum_score ?? row.overall);
@@ -166,9 +147,9 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
               return { symbol: row.symbol, name: row.company_name, score, category: row.momentum_category, changePct: row.change_pct, ltp: num(row.ltp) };
             })
             .filter((x): x is HomeState["momentumLeaders"][number] => x !== null),
-          gainers: (gainersRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null).slice(0, 5),
-          losers: (losersRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null).slice(0, 5),
-          byVolume: (volumeRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null).slice(0, 5),
+          gainers: filterMovers((gainersRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { softGainers: true, limit: 5 }),
+          losers: filterMovers((losersRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { limit: 5 }),
+          byVolume: filterMovers((volumeRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { volumeMover: true, limit: 5 }),
           asOf: overview.as_of ?? sectorsRes?.as_of ?? current.asOf,
         }));
         setLiveLabel(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
@@ -265,18 +246,24 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
-          <DataTable title="Top Momentum Stocks" href="/momentum" score rows={state.momentumLeaders.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.ltp, changePct: r.changePct, score: r.score }))} />
-          <DataTable title="Top Gainers" href="/screener" rows={state.gainers.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.price, changePct: r.changePct }))} />
-          <DataTable title="Top Losers" href="/screener" rows={state.losers.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.price, changePct: r.changePct }))} />
-          <DataTable title="High Volume Stocks" href="/volume-gainer" rows={state.byVolume.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.price, changePct: r.changePct }))} />
+          <DataTable title="Top Momentum Stocks" href="/momentum" viewLabel="View momentum" score rows={state.momentumLeaders.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.ltp, changePct: r.changePct, score: r.score }))} />
+          <DataTable title="Top Gainers" href="/screener?sort_by=change_pct&sort_dir=desc" viewLabel="View gainers" rows={state.gainers.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.price, changePct: r.changePct }))} />
+          <DataTable title="Top Losers" href="/screener?sort_by=change_pct&sort_dir=asc" viewLabel="View losers" rows={state.losers.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.price, changePct: r.changePct }))} />
+          <DataTable title="High Volume Stocks" href="/volume-gainer" viewLabel="View volume" rows={state.byVolume.slice(0, 5).map((r, i) => ({ rank: i + 1, symbol: r.symbol, price: r.price, changePct: r.changePct }))} />
         </section>
 
         <section className="grid gap-6 py-9 lg:grid-cols-2">
           <SectorBars sectors={state.sectors} />
-          <RotationGrid items={state.rotation} />
+          <RotationList items={state.rotation} />
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <MarketList title="Key ETFs" rows={state.sectorEtfs} href="/markets" viewLabel="View all ETFs" />
+          <MarketList title="Commodities" rows={state.indexRows} href="/markets?tab=commodities" viewLabel="View commodities" />
+        </section>
+
+        <section className="grid gap-6 py-9 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <QuoteCard />
-          <MarketList title="Key ETFs" rows={state.sectorEtfs} href="/markets" />
-          <MarketList title="Commodities & Currency" rows={state.indexRows} href="/markets" />
           <WatchlistCta />
         </section>
       </main>
@@ -291,7 +278,9 @@ function IndexTile({ card }: { card: IndexCard }) {
       <p className="mt-2 text-lg font-bold tabular-nums text-slate-100">{formatNumber(card.value, { maximumFractionDigits: 2 })}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <p className={cn("text-[11px] font-semibold tabular-nums", pctClass(card.changePct))}>{formatNumber(card.change, { maximumFractionDigits: 2 })} ({formatPct(card.changePct)})</p>
-        <Sparkline data={card.sparkline} positive={card.changePct >= 0} width={58} height={26} />
+        {card.sparkline.length >= 5 ? (
+          <Sparkline data={card.sparkline} positive={card.changePct >= 0} width={58} height={26} />
+        ) : null}
       </div>
     </article>
   );
@@ -299,29 +288,71 @@ function IndexTile({ card }: { card: IndexCard }) {
 
 type DataRow = { rank: number; symbol: string; price: number | null | undefined; changePct: number | null | undefined; score?: number | null };
 
-function DataTable({ title, href, rows, score = false }: { title: string; href: string; rows: DataRow[]; score?: boolean }) {
+function DataTable({
+  title,
+  href,
+  rows,
+  score = false,
+  viewLabel = "View all",
+}: {
+  title: string;
+  href: string;
+  rows: DataRow[];
+  score?: boolean;
+  viewLabel?: string;
+}) {
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-base font-bold text-slate-100">{title}</h2>
-        <Link href={href} className="text-[11px] font-semibold text-emerald-300 hover:text-emerald-200">View All</Link>
+        <Link href={href} className="shrink-0 text-[11px] font-semibold text-emerald-300 hover:text-emerald-200">
+          {viewLabel}
+        </Link>
       </div>
-      <table className="w-full text-left text-xs">
+      <table className="w-full table-fixed text-left text-xs">
         <thead className="text-[10px] uppercase tracking-wide text-slate-600">
-          <tr><th className="pb-3 font-semibold">#</th><th className="pb-3 font-semibold">Stock</th><th className="pb-3 text-right font-semibold">Price</th><th className="pb-3 text-right font-semibold">1D %</th>{score ? <th className="pb-3 text-right font-semibold">Score</th> : null}</tr>
+          <tr>
+            <th className="w-8 pb-3 font-semibold">#</th>
+            <th className="pb-3 font-semibold">Stock</th>
+            <th className="w-20 pb-3 text-right font-semibold">Price</th>
+            <th className="w-16 pb-3 text-right font-semibold">1D %</th>
+            <th className="w-14 pb-3 text-right font-semibold">{score ? "Score" : ""}</th>
+          </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           {rows.length === 0 ? (
-            <tr><td colSpan={score ? 5 : 4} className="py-8 text-center text-slate-500">No live data yet.</td></tr>
-          ) : rows.map((row) => (
-            <tr key={row.symbol}>
-              <td className="py-3 tabular-nums text-slate-600">{row.rank}</td>
-              <td className="py-3"><Link href={`/stocks/${row.symbol}`} className="font-bold text-emerald-300 hover:text-emerald-200">{row.symbol}</Link></td>
-              <td className="py-3 text-right font-semibold tabular-nums text-slate-200">{formatNumber(row.price, { maximumFractionDigits: 2 })}</td>
-              <td className={cn("py-3 text-right font-bold tabular-nums", pctClass(row.changePct))}>{formatPct(row.changePct)}</td>
-              {score ? <td className="py-3 text-right"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300/40 text-[11px] font-bold text-emerald-300">{formatNumber(row.score, { maximumFractionDigits: 0 })}</span></td> : null}
+            <tr>
+              <td colSpan={5} className="py-8 text-center text-slate-500">
+                No live data yet.
+              </td>
             </tr>
-          ))}
+          ) : (
+            rows.map((row) => (
+              <tr key={row.symbol}>
+                <td className="py-3 tabular-nums text-slate-600">{row.rank}</td>
+                <td className="py-3">
+                  <Link href={`/stocks/${row.symbol}`} className="font-bold text-emerald-300 hover:text-emerald-200">
+                    {row.symbol}
+                  </Link>
+                </td>
+                <td className="py-3 text-right font-semibold tabular-nums text-slate-200">
+                  {formatNumber(row.price, { maximumFractionDigits: 2 })}
+                </td>
+                <td className={cn("py-3 text-right font-bold tabular-nums", pctClass(row.changePct))}>
+                  {formatPct(row.changePct)}
+                </td>
+                <td className="py-3 text-right">
+                  {score ? (
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300/40 text-[11px] font-bold text-emerald-300">
+                      {formatNumber(row.score, { maximumFractionDigits: 0 })}
+                    </span>
+                  ) : (
+                    <span className="inline-block h-8 w-8" aria-hidden />
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </article>
@@ -329,16 +360,30 @@ function DataTable({ title, href, rows, score = false }: { title: string; href: 
 }
 
 function SectorBars({ sectors }: { sectors: SectorCell[] }) {
+  const values = sectors.slice(0, 8).map((s) => Math.abs(s.scoreChange1w ?? 0));
+  const maxAbs = Math.max(1, ...values);
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <h2 className="mb-4 text-base font-bold text-slate-100">Sector Performance</h2>
+      <div className="mb-1 flex items-end justify-between gap-3">
+        <h2 className="text-base font-bold text-slate-100">Sector Performance</h2>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">1W score change</p>
+      </div>
+      <p className="mb-4 text-[11px] text-slate-500">Top industries by weekly strength move (not 3M return).</p>
       <div className="space-y-3">
         {sectors.slice(0, 8).map((sector) => {
-          const ret = sector.return3m ?? sector.scoreChange1w ?? 0;
+          const ret = sector.scoreChange1w ?? 0;
+          const widthPct = Math.min(100, Math.max(8, (Math.abs(ret) / maxAbs) * 100));
           return (
-            <div key={sector.name} className="grid grid-cols-[88px_1fr_46px] items-center gap-3 text-xs">
-              <span className="truncate text-slate-400">{sector.name}</span>
-              <span className="h-2 overflow-hidden rounded-full bg-white/5"><span className={cn("block h-full rounded-full", ret >= 0 ? "bg-emerald-400" : "bg-red-400")} style={{ width: `${Math.min(100, Math.max(12, Math.abs(ret) * 6))}%` }} /></span>
+            <div key={sector.name} className="grid grid-cols-[100px_1fr_52px] items-center gap-3 text-xs">
+              <span className="truncate text-slate-400" title={sector.name}>
+                {sector.name}
+              </span>
+              <span className="h-2 overflow-hidden rounded-full bg-white/5">
+                <span
+                  className={cn("block h-full rounded-full", ret >= 0 ? "bg-emerald-400" : "bg-red-400")}
+                  style={{ width: `${widthPct}%` }}
+                />
+              </span>
               <span className={cn("text-right font-bold tabular-nums", pctClass(ret))}>{formatPct(ret, 1)}</span>
             </div>
           );
@@ -348,41 +393,125 @@ function SectorBars({ sectors }: { sectors: SectorCell[] }) {
   );
 }
 
-function RotationGrid({ items }: { items: RotationItem[] }) {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+function rotationTone(state: string | null | undefined) {
+  const s = (state || "").toLowerCase();
+  if (s === "improving") return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
+  if (s === "weakening") return "border-amber-400/40 bg-amber-400/10 text-amber-300";
+  if (s === "leading") return "border-sky-400/40 bg-sky-400/10 text-sky-300";
+  if (s === "lagging") return "border-red-400/40 bg-red-400/10 text-red-300";
+  return "border-white/10 bg-white/5 text-slate-400";
+}
+
+function RotationList({ items }: { items: RotationItem[] }) {
+  const flowing = items.filter((i) => (i.state || "").toLowerCase() === "improving");
+  const cooling = items.filter((i) => (i.state || "").toLowerCase() === "weakening");
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <h2 className="mb-4 text-base font-bold text-slate-100">Sector Rotation (Weekly)</h2>
-      <div className="grid grid-cols-[92px_repeat(5,1fr)] gap-2 text-[10px] text-slate-500">
-        <span>Sector</span>{days.map((day) => <span key={day} className="text-center">{day}</span>)}
-        {items.slice(0, 8).map((item, rowIndex) => (
-          <div key={item.id} className="contents">
-            <span className="truncate py-1.5 text-slate-400">{item.name}</span>
-            {days.map((day, i) => <span key={`${item.id}-${day}`} className={cn("mx-auto h-6 w-8 rounded-md", ((item.scoreChange ?? item.score) >= 0 || (rowIndex + i) % 5 !== 0) ? "bg-emerald-400/70" : "bg-red-400/80")} />)}
-          </div>
-        ))}
+      <h2 className="mb-1 text-base font-bold text-slate-100">Smart Money Rotation</h2>
+      <p className="mb-4 text-[11px] text-slate-500">
+        Where money is flowing (Improving) vs cooling off (Weakening), then Leading/Lagging fill.
+      </p>
+      <div className="space-y-2.5">
+        {items.slice(0, 8).map((item) => {
+          const ret = item.scoreChange ?? item.return3mCw;
+          const badge = item.state || "-";
+          const hint =
+            (item.state || "").toLowerCase() === "improving"
+              ? "Where money is flowing"
+              : (item.state || "").toLowerCase() === "weakening"
+                ? "Cooling off"
+                : null;
+          return (
+            <div
+              key={item.id}
+              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/5 bg-[#0a0e14] px-3 py-2.5"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-200">{item.name}</span>
+                  <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", rotationTone(item.state))}>
+                    {badge}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Strength {formatNumber(item.score, { maximumFractionDigits: 0 })}
+                  {ret != null ? ` · 3M ${formatPct(ret, 1)}` : ""}
+                  {hint ? ` · ${hint}` : ""}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wide text-slate-600">Score</p>
+                <p className="text-sm font-bold tabular-nums text-slate-100">
+                  {formatNumber(item.score, { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+        {items.length === 0 ? <p className="py-6 text-center text-xs text-slate-500">No rotation data yet.</p> : null}
       </div>
+      {(flowing.length > 0 || cooling.length > 0) && (
+        <p className="mt-3 text-[10px] text-slate-600">
+          {flowing.length ? `${flowing.length} improving` : "No improving"}
+          {" · "}
+          {cooling.length ? `${cooling.length} weakening` : "No weakening"}
+        </p>
+      )}
     </article>
   );
 }
 
-function MarketList({ title, rows, href }: { title: string; rows: Array<IndexRow | SectorEtfRow>; href: string }) {
+function MarketList({
+  title,
+  rows,
+  href,
+  viewLabel = "View all",
+}: {
+  title: string;
+  rows: Array<IndexRow | SectorEtfRow>;
+  href: string;
+  viewLabel?: string;
+}) {
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-base font-bold text-slate-100">{title}</h2>
-        <Link href={href} className="text-[11px] font-semibold text-emerald-300 hover:text-emerald-200">View All</Link>
+        <Link href={href} className="shrink-0 text-[11px] font-semibold text-emerald-300 hover:text-emerald-200">
+          {viewLabel}
+        </Link>
       </div>
       <table className="w-full text-left text-xs">
-        <thead className="text-[10px] uppercase tracking-wide text-slate-600"><tr><th className="pb-3">Name</th><th className="pb-3 text-right">Price</th><th className="pb-3 text-right">1D %</th></tr></thead>
+        <thead className="text-[10px] uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="pb-3">Name</th>
+            <th className="pb-3 text-right">Price</th>
+            <th className="pb-3 text-right">1D %</th>
+          </tr>
+        </thead>
         <tbody className="divide-y divide-white/5">
           {rows.slice(0, 6).map((row) => (
             <tr key={"symbol" in row ? row.symbol : row.name}>
-              <td className="py-3 font-bold text-emerald-300">{"symbol" in row ? row.symbol : row.name}</td>
-              <td className="py-3 text-right font-semibold tabular-nums text-slate-200">{formatNumber(row.value, { maximumFractionDigits: 2 })}</td>
-              <td className={cn("py-3 text-right font-bold tabular-nums", pctClass(row.changePct))}>{formatPct(row.changePct)}</td>
+              <td className="py-3">
+                <p className="font-bold text-emerald-300">{"symbol" in row ? row.symbol : row.name}</p>
+                {"symbol" in row && row.name && row.name !== row.symbol ? (
+                  <p className="text-[10px] text-slate-500">{row.name}</p>
+                ) : null}
+              </td>
+              <td className="py-3 text-right font-semibold tabular-nums text-slate-200">
+                {formatNumber(row.value, { maximumFractionDigits: 2 })}
+              </td>
+              <td className={cn("py-3 text-right font-bold tabular-nums", pctClass(row.changePct))}>
+                {formatPct(row.changePct)}
+              </td>
             </tr>
           ))}
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={3} className="py-8 text-center text-slate-500">
+                No quotes yet.
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </article>

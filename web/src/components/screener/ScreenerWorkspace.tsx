@@ -16,6 +16,7 @@ import {
   useTransition,
   type FormEvent,
 } from "react";
+import { useSearchParams } from "next/navigation";
 
 import {
   COLUMN_STORAGE_KEY,
@@ -129,13 +130,18 @@ function buildQuery(
 }
 
 export function ScreenerWorkspace() {
+  const searchParams = useSearchParams();
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [draft, setDraft] = useState<FilterState>(INITIAL_FILTERS);
   const [visible, setVisible] = useState<ColumnId[]>(defaultVisibleColumns);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
-  const [sortBy, setSortBy] = useState("momentum_score");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState(() => searchParams.get("sort_by") || "momentum_score");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => {
+    const raw = searchParams.get("sort_dir");
+    if (raw === "asc" || raw === "desc") return raw;
+    return searchParams.get("sort_by") === "change_pct" && raw !== "desc" ? "desc" : "desc";
+  });
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
@@ -147,9 +153,15 @@ export function ScreenerWorkspace() {
 
   useEffect(() => {
     setVisible(loadVisibleColumns());
-    // Prefer 0–100 momentum score over legacy trend 0–5 sort
-    setSortBy((prev) => (prev === "trend_score" || prev === "score" ? "momentum_score" : prev));
-  }, []);
+    const urlSort = searchParams.get("sort_by");
+    const urlDir = searchParams.get("sort_dir");
+    if (urlSort) {
+      setSortBy(urlSort === "trend_score" || urlSort === "score" ? "momentum_score" : urlSort);
+    } else {
+      setSortBy((prev) => (prev === "trend_score" || prev === "score" ? "momentum_score" : prev));
+    }
+    if (urlDir === "asc" || urlDir === "desc") setSortDir(urlDir);
+  }, [searchParams]);
 
   const activeColumns = useMemo(() => {
     const order = new Map(SCREENER_COLUMNS.map((c, i) => [c.id, i]));

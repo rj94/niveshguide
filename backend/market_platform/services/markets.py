@@ -41,7 +41,13 @@ SECTOR_ETFS = (
     ("AUTOBEES", "Auto", "sector", "Consumer"),
     ("INFRABEES", "Infra", "sector", "Industrials"),
     ("CONSUMBEES", "Consumption", "sector", "Consumer"),
-    ("GOLDBEES", "Gold", "commodity", None),
+    # Commodities: India ETFs where possible; Yahoo futures proxies otherwise.
+    ("GOLDBEES", "Gold ETF", "commodity", None),
+    ("SILVERBEES", "Silver ETF", "commodity", None),
+    ("CL=F", "Crude Oil (WTI)", "commodity", None),
+    ("BZ=F", "Brent Crude", "commodity", None),
+    ("NG=F", "Natural Gas", "commodity", None),
+    ("HG=F", "Copper", "commodity", None),
 )
 
 KEY_ETFS = (*INDEX_ETFS, *SECTOR_ETFS)
@@ -84,7 +90,9 @@ def _etf_sparkline(session: Session, stock_id: int, limit: int = 20) -> list[flo
         .order_by(StockPrice.price_date.desc())
         .limit(limit)
     ).all()
-    return [float(v) for v in reversed(rows) if v is not None]
+    points = [float(v) for v in reversed(rows) if v is not None]
+    # Hide fake 2-point slopes; need a real mini-series.
+    return points if len(points) >= 5 else []
 
 
 def _index_sparkline(session: Session, index_id: int, limit: int = 20) -> list[float]:
@@ -94,7 +102,8 @@ def _index_sparkline(session: Session, index_id: int, limit: int = 20) -> list[f
         .order_by(MarketIndexPrice.price_date.desc())
         .limit(limit)
     ).all()
-    return [float(v) for v in reversed(rows) if v is not None]
+    points = [float(v) for v in reversed(rows) if v is not None]
+    return points if len(points) >= 5 else []
 
 
 def _card_from_etf(

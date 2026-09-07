@@ -32,3 +32,9 @@ backend/credentials/
 .vscode/
 frontend/dist/
 *.pem
+
+.prod_db_url.tmp
+.railway_pg_vars.json
+.tmp_mh_comps.tsx
+backend/.prod_db_url.tmp
+backend/.railway_pg_vars.json

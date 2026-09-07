@@ -24,6 +24,11 @@ KEY_ETFS: tuple[tuple[str, str, str, str | None], ...] = (
     ("INFRABEES", "Infra ETF", "sector", "Industrials"),
     ("CONSUMBEES", "Consumption ETF", "sector", "Consumer"),
     ("GOLDBEES", "Gold ETF", "commodity", None),
+    ("SILVERBEES", "Silver ETF", "commodity", None),
+    ("CL=F", "Crude Oil (WTI)", "commodity", None),
+    ("BZ=F", "Brent Crude", "commodity", None),
+    ("NG=F", "Natural Gas", "commodity", None),
+    ("HG=F", "Copper", "commodity", None),
 )
 
 
@@ -33,7 +38,7 @@ def key_etf_symbols() -> list[str]:
 
 def refresh_key_etf_quotes(session: Session, *, symbols: list[str] | None = None) -> dict[str, Any]:
     target_symbols = [s.strip().upper() for s in symbols or [] if s.strip()] or key_etf_symbols()
-    history = fetch_yahoo_history(target_symbols, period="5d")
+    history = fetch_yahoo_history(target_symbols, period="3mo")
     today = date.today()
     stored = 0
     missing: list[str] = []
