@@ -9,10 +9,18 @@ from typing import Any
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session
 
-from database.models import Stock, StockIndicator, StockIndexMembership, StockPrice, StockSnapshot
+from database.models import (
+    Stock,
+    StockFundamental,
+    StockIndicator,
+    StockIndexMembership,
+    StockPrice,
+    StockSnapshot,
+)
 from database.repository import get_stock_by_symbol, latest_screener_query
 from ingestion.screener_in.fundamentals_api import (
     fundamentals_from_db,
+    latest_fundamental,
     ownership_snapshot,
     period_history,
 )
@@ -186,6 +194,19 @@ def get_stock_detail(
 
     ltp = _f(snapshot.ltp) if snapshot else None
     prev = _f(snapshot.prev_close) if snapshot else None
+    # Approx 1M / 1Y returns from stored closes when available.
+    closes = [float(p.close) for p in price_bars if p.close is not None]
+    return_1m = None
+    return_1y = None
+    if len(closes) > 21 and closes[-22]:
+        return_1m = round(((closes[-1] / closes[-22]) - 1.0) * 100.0, 4)
+    if len(closes) > 252 and closes[-253]:
+        return_1y = round(((closes[-1] / closes[-253]) - 1.0) * 100.0, 4)
+
+    if ltp is None and price_bars:
+        ltp = float(price_bars[-1].close)
+        if prev is None and len(price_bars) >= 2:
+            prev = float(price_bars[-2].close)
     change = None
     if ltp is not None and prev is not None:
         change = ltp - prev
@@ -200,15 +221,6 @@ def get_stock_detail(
             return None
         return "Bullish" if price >= ma else "Bearish"
 
-    # Approx 1M / 1Y returns from stored closes when available.
-    closes = [float(p.close) for p in price_bars if p.close is not None]
-    return_1m = None
-    return_1y = None
-    if len(closes) > 21 and closes[-22]:
-        return_1m = round(((closes[-1] / closes[-22]) - 1.0) * 100.0, 4)
-    if len(closes) > 252 and closes[-253]:
-        return_1y = round(((closes[-1] / closes[-253]) - 1.0) * 100.0, 4)
-
     as_of = indicator.calculation_date if indicator else (snapshot.snapshot_date if snapshot else None)
     score = indicator.trend_score if indicator else None
     trend_strength = Decimal(str(round((score or 0) * 20, 1))) if score is not None else None
@@ -221,6 +233,7 @@ def get_stock_detail(
     strength_map = industry_strength_by_stock_id(session)
     sector_s = _dec(strength_map.get(stock.id))
 
+    fund_row = latest_fundamental(session, stock.id)
     fundamentals, fundamental_metrics = fundamentals_from_db(
         session,
         stock.id,
@@ -234,6 +247,27 @@ def get_stock_detail(
     annual_history = period_history(session, stock.id, "profit-loss", limit=12)
 
     ma20 = _f(indicator.ma_20) if indicator else None
+    market_cap = _f(snapshot.market_cap) if snapshot else None
+    if market_cap is None and fund_row is not None:
+        market_cap = _f(fund_row.market_cap)
+    pe = _f(snapshot.pe) if snapshot else None
+    if pe is None and fund_row is not None:
+        pe = _f(fund_row.pe)
+    eps = _f(snapshot.eps) if snapshot else None
+    if eps is None and fund_row is not None:
+        eps = _f(fund_row.eps)
+    volume = int(snapshot.volume) if snapshot and snapshot.volume is not None else None
+    if volume is None and prices:
+        for price in prices:
+            if price.volume is not None:
+                volume = int(price.volume)
+                break
+    avg_vol_3m = _f(snapshot.avg_volume_3m) if snapshot else None
+    avg_vol_6m = _f(snapshot.avg_volume_6m) if snapshot else None
+    avg_vol_1y = _f(snapshot.avg_volume_1y) if snapshot else None
+    avg_vol_20 = _f(indicator.volume_avg_20) if indicator else None
+    if avg_vol_3m is None:
+        avg_vol_3m = avg_vol_20
 
     memb_rows = session.scalars(
         select(StockIndexMembership)
@@ -259,7 +293,7 @@ def get_stock_detail(
         industry=stock.industry,
         industries=industries,
         index_memberships=index_memberships,
-        market_cap=_dec(snapshot.market_cap) if snapshot else None,
+        market_cap=_dec(market_cap),
         listing_date=None,
         status="active" if stock.is_active else "inactive",
         quote=Quote(
@@ -267,11 +301,11 @@ def get_stock_detail(
             previous_close=_dec(prev),
             change=_dec(change),
             change_pct=_pct_change(ltp, prev),
-            as_of=snapshot.snapshot_date if snapshot else None,
+            as_of=snapshot.snapshot_date if snapshot else (price_bars[-1].date if price_bars else None),
             open=_dec(prev),
             high=_dec(snapshot.day_high) if snapshot else None,
             low=None,
-            volume=int(snapshot.volume) if snapshot and snapshot.volume is not None else None,
+            volume=volume,
         ),
         scores=ScoreCard(
             as_of=as_of,
@@ -319,14 +353,14 @@ def get_stock_detail(
             ma21_gt_ma50=indicator.ma21_gt_ma50 if indicator else None,
             above_ma_200=indicator.above_ma_200 if indicator else None,
             golden_cross=indicator.golden_cross if indicator else None,
-            pe=_dec(snapshot.pe) if snapshot else None,
-            eps=_dec(snapshot.eps) if snapshot else None,
+            pe=_dec(pe),
+            eps=_dec(eps),
             day_high=_dec(snapshot.day_high) if snapshot else None,
             prev_close=_dec(prev),
-            avg_volume_20=_f(indicator.volume_avg_20) if indicator else None,
-            avg_volume_3m=_f(snapshot.avg_volume_3m) if snapshot else None,
-            avg_volume_6m=_f(snapshot.avg_volume_6m) if snapshot else None,
-            avg_volume_1y=_f(snapshot.avg_volume_1y) if snapshot else None,
+            avg_volume_20=avg_vol_20,
+            avg_volume_3m=avg_vol_3m,
+            avg_volume_6m=avg_vol_6m,
+            avg_volume_1y=avg_vol_1y,
             volume_ratio=_f(indicator.volume_ratio) if indicator else None,
             distance_20_dma=_f(indicator.distance_20_dma) if indicator else None,
             distance_50_dma=_f(indicator.distance_50_dma) if indicator else None,
@@ -350,6 +384,8 @@ def _analysis_row(
     *,
     sector_strength: float | None = None,
     price_fallback: tuple[float | None, float | None] | None = None,
+    fund_fallback: StockFundamental | None = None,
+    volume_fallback: int | None = None,
 ) -> StockAnalysisRow:
     ltp = _f(snapshot.ltp) if snapshot else None
     prev = _f(snapshot.prev_close) if snapshot else None
@@ -365,11 +401,19 @@ def _analysis_row(
     ma50 = _f(indicator.ma_50)
     ma200 = _f(indicator.ma_200)
     volume = int(snapshot.volume) if snapshot and snapshot.volume is not None else None
+    if volume is None and volume_fallback is not None:
+        volume = volume_fallback
     avg_vol_20 = _f(indicator.volume_avg_20)
     avg_vol_1w = _f(getattr(indicator, "volume_avg_5", None))
     avg_vol_3m = _f(snapshot.avg_volume_3m) if snapshot else None
     avg_vol_6m = _f(snapshot.avg_volume_6m) if snapshot else None
     avg_vol_1y = _f(snapshot.avg_volume_1y) if snapshot else None
+    if avg_vol_3m is None:
+        avg_vol_3m = avg_vol_20
+    if avg_vol_6m is None:
+        avg_vol_6m = avg_vol_20
+    if avg_vol_1y is None:
+        avg_vol_1y = avg_vol_20
     volume_ratio = _f(indicator.volume_ratio)
     if volume_ratio is None and volume is not None and avg_vol_20 and avg_vol_20 > 0:
         volume_ratio = round(volume / avg_vol_20, 4)
@@ -385,6 +429,15 @@ def _analysis_row(
         volume_gainer = bool(
             avg_vol_1w > avg_vol_3m and avg_vol_1w > avg_vol_6m and avg_vol_1w > avg_vol_1y
         )
+    pe = _f(snapshot.pe) if snapshot else None
+    if pe is None and fund_fallback is not None:
+        pe = _f(fund_fallback.pe)
+    eps = _f(snapshot.eps) if snapshot else None
+    if eps is None and fund_fallback is not None:
+        eps = _f(fund_fallback.eps)
+    market_cap = _f(snapshot.market_cap) if snapshot else None
+    if market_cap is None and fund_fallback is not None:
+        market_cap = _f(fund_fallback.market_cap)
     golden = indicator.golden_cross
     above_stack = None
     if ltp is not None and ma50 is not None and ma200 is not None:
@@ -428,9 +481,9 @@ def _analysis_row(
         return_6m_pct=_ret_pct(indicator.return_6m),
         return_12m_pct=_ret_pct(indicator.return_12m),
         distance_from_52w_high=_f(indicator.distance_from_52w_high),
-        pe=_dec(snapshot.pe) if snapshot else None,
-        eps=_dec(snapshot.eps) if snapshot else None,
-        market_cap=_dec(_f(snapshot.market_cap)) if snapshot else None,
+        pe=_dec(pe),
+        eps=_dec(eps),
+        market_cap=_dec(market_cap),
         trend=indicator.trend,
         trend_score=score,
         company_strength=strength,
@@ -537,6 +590,51 @@ def _latest_close_pair_by_stock_id(
     return {sid: (latest.get(sid), prev.get(sid)) for sid in latest}
 
 
+def _latest_volume_by_stock_id(session: Session, stock_ids: list[int]) -> dict[int, int]:
+    """stock_id → latest non-null volume from stock_prices."""
+    if not stock_ids:
+        return {}
+    ranked = (
+        select(
+            StockPrice.stock_id.label("stock_id"),
+            StockPrice.volume.label("volume"),
+            func.row_number()
+            .over(partition_by=StockPrice.stock_id, order_by=StockPrice.price_date.desc())
+            .label("rn"),
+        )
+        .where(
+            StockPrice.stock_id.in_(stock_ids),
+            StockPrice.volume.is_not(None),
+        )
+        .subquery()
+    )
+    rows = session.execute(
+        select(ranked.c.stock_id, ranked.c.volume).where(ranked.c.rn == 1)
+    ).all()
+    out: dict[int, int] = {}
+    for stock_id, volume in rows:
+        if volume is None:
+            continue
+        out[int(stock_id)] = int(volume)
+    return out
+
+
+def _fundamentals_by_stock_id(
+    session: Session, stock_ids: list[int]
+) -> dict[int, StockFundamental]:
+    """Latest StockFundamental row per stock_id."""
+    if not stock_ids:
+        return {}
+    fund_by_id: dict[int, StockFundamental] = {}
+    for fund in session.scalars(
+        select(StockFundamental).where(StockFundamental.stock_id.in_(stock_ids))
+    ).all():
+        prev = fund_by_id.get(fund.stock_id)
+        if prev is None or (fund.as_of_date or date.min) >= (prev.as_of_date or date.min):
+            fund_by_id[fund.stock_id] = fund
+    return fund_by_id
+
+
 def _with_volume_1w(row: StockAnalysisRow, avg_1w: float | None) -> StockAnalysisRow:
     data = row.model_dump()
     data["avg_volume_1w"] = avg_1w
@@ -587,7 +685,14 @@ def list_stock_analysis(
         for stock, _indicator, snapshot in rows
         if snapshot is None or snapshot.ltp is None
     ]
+    missing_vol_ids = [
+        int(stock.id)
+        for stock, _indicator, snapshot in rows
+        if snapshot is None or snapshot.volume is None
+    ]
     close_fallback = _latest_close_pair_by_stock_id(session, missing_ltp_ids)
+    volume_fallback = _latest_volume_by_stock_id(session, missing_vol_ids)
+    fund_by_id = _fundamentals_by_stock_id(session, [int(stock.id) for stock, _, _ in rows])
 
     items: list[StockAnalysisRow] = []
     fresh_flags: dict[str, bool] = {}
@@ -605,6 +710,8 @@ def list_stock_analysis(
             snapshot,
             sector_strength=strength_map.get(stock.id),
             price_fallback=close_fallback.get(stock.id),
+            fund_fallback=fund_by_id.get(stock.id),
+            volume_fallback=volume_fallback.get(stock.id),
         )
         if price_above_50_above_200 is not None and row.price_above_50_above_200 is not price_above_50_above_200:
             if bool(row.price_above_50_above_200) != price_above_50_above_200:
@@ -662,9 +769,6 @@ def list_stock_analysis(
         ]
         items = [r for r in items if bool(r.volume_gainer) == volume_gainer]
 
-    scanned = min(len(items), scan_limit)
-    items = items[:scan_limit]
-
     reverse = sort_dir.lower() != "asc"
     # Alias Trade desk sort keys
     sort_aliases = {
@@ -711,6 +815,8 @@ def list_stock_analysis(
         "industry": lambda r: (r.industry or "").lower(),
     }
     items.sort(key=key_map.get(sort_by, key_map["symbol"]), reverse=reverse)
+    scanned = min(len(items), scan_limit)
+    items = items[:scan_limit]
     total = len(items)
     page = items[offset : offset + limit]
     return page, total, scanned

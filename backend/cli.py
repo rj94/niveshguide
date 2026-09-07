@@ -199,6 +199,25 @@ def cmd_backfill(args) -> None:
     print(f"Upserted {stored} price rows")
 
 
+def cmd_backfill_yahoo_meta(args) -> None:
+    from ingestion.yahoo_meta import backfill_yahoo_meta
+
+    session = _session()
+    symbols = [item.strip().upper() for item in args.symbols.split(",")] if args.symbols else None
+    result = backfill_yahoo_meta(
+        session,
+        symbols=symbols,
+        limit=args.limit,
+        chunk_size=args.chunk_size,
+        sleep_s=args.sleep,
+        screener_sectors=not args.skip_screener,
+        screener_cache_only=args.screener_cache_only,
+        screener_delay_min=args.screener_delay_min,
+        screener_delay_max=args.screener_delay_max,
+    )
+    print(json.dumps(result, indent=2, default=str))
+
+
 def cmd_calculate(_args) -> None:
     from indicators.engine import calculate_all
 
@@ -472,6 +491,28 @@ def build_parser() -> argparse.ArgumentParser:
     backfill.add_argument("--symbols", help="Comma-separated symbols. Default: all active stocks.")
     backfill.add_argument("--period", default="1y")
     backfill.set_defaults(func=cmd_backfill)
+
+    yahoo_meta = sub.add_parser(
+        "backfill-yahoo-meta",
+        help="Backfill missing sector/industry/market_cap/pe from Yahoo Finance info",
+    )
+    yahoo_meta.add_argument("--symbols", help="Comma-separated symbols (default: gap stocks)")
+    yahoo_meta.add_argument("--limit", type=int, help="Max symbols to process")
+    yahoo_meta.add_argument("--chunk-size", type=int, default=40)
+    yahoo_meta.add_argument("--sleep", type=float, default=0.35, help="Pause between Yahoo chunks (seconds)")
+    yahoo_meta.add_argument(
+        "--skip-screener",
+        action="store_true",
+        help="Skip Screener.in sector/industry fill for remaining gaps",
+    )
+    yahoo_meta.add_argument(
+        "--screener-cache-only",
+        action="store_true",
+        help="Only use existing Screener.in HTML cache (no live fetches)",
+    )
+    yahoo_meta.add_argument("--screener-delay-min", type=float, default=2.0)
+    yahoo_meta.add_argument("--screener-delay-max", type=float, default=4.0)
+    yahoo_meta.set_defaults(func=cmd_backfill_yahoo_meta)
 
     bootstrap = sub.add_parser("bootstrap", help="Load symbols, sync sheet, backfill, calculate")
     bootstrap.add_argument("--demo", action="store_true", help="Limit Yahoo backfill to a liquid subset")
