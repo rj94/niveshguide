@@ -204,15 +204,18 @@ def _card_from_index(
 
 def _featured_index_cards(session: Session) -> list[MarketQuoteCard]:
     cards: list[MarketQuoteCard] = []
+    etf_map = {name: sym for sym, name, _ in INDEX_ETFS}
     for key, display_name in FEATURED_INDICES:
         idx = session.scalar(select(MarketIndex).where(MarketIndex.key == key))
         card = _card_from_index(session, idx, display_name=display_name) if idx else None
-        if card is None:
-            # Map featured display â†’ ETF fallback by position.
-            etf_map = {name: sym for sym, name, _ in INDEX_ETFS}
-            etf_sym = etf_map.get(display_name)
-            if etf_sym:
-                card = _card_from_etf(session, etf_sym, display_name, "index")
+        etf_sym = etf_map.get(display_name)
+        if card is None and etf_sym:
+            card = _card_from_etf(session, etf_sym, display_name, "index")
+        elif card is not None and len(card.sparkline) < 5 and etf_sym:
+            # Prefer ETF history for sparkline only (avoid mixing ETF closes into index prices).
+            etf_card = _card_from_etf(session, etf_sym, display_name, "index")
+            if etf_card and len(etf_card.sparkline) >= 5:
+                card = card.model_copy(update={"sparkline": etf_card.sparkline})
         if card:
             cards.append(card)
     return cards

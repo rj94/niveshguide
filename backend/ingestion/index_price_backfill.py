@@ -39,7 +39,7 @@ YAHOO_INDEX_TICKERS: dict[str, str] = {
     "NIFTY INFRA": "^CNXINFRA",
     "NIFTY CONSUMPTION": "^CNXCONSUM",
     "NIFTY 50": "^NSEI",
-    "NIFTY NEXT 50": "JUNIORBEES.NS",  # ETF proxy for sparkline history
+    "NIFTY NEXT 50": "NIFTYNXT50.NS",  # often unavailable; sparkline falls back to JUNIORBEES ETF
     "NIFTY 100": "^CNX100",
     "NIFTY 500": "^CRSLDX",
 }
