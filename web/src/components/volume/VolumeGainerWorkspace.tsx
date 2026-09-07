@@ -92,7 +92,7 @@ export function VolumeGainerWorkspace() {
             sort_dir: "desc",
             limit: 400,
             offset: 0,
-            scan_limit: 8000,
+            scan_limit: 2000,
           }),
           listSectors({ limit: 80, min_constituents: 3 }).catch(() => null),
         ]);

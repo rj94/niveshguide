@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = f"sqlite:///{(BACKEND_ROOT / 'data' / 'screener.db').as_posix()}"
+    redis_url: str | None = None
     google_spreadsheet_id: str = "1xzT_B1vlCr_MlYN6a-CVfxDUbB8BhZiqfQUJkPGPBBk"
     google_sheet_gid: int = 0
     google_sheet_name: str = "StockFilter"

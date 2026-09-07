@@ -350,4 +350,10 @@ def calculate_all(session: Session, calc_date: date | None = None) -> int:
         count += 1
 
     session.commit()
+    try:
+        from cache.redis_cache import invalidate_market_caches
+
+        invalidate_market_caches()
+    except Exception:  # noqa: BLE001
+        pass
     return count

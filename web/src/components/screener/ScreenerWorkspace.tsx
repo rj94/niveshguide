@@ -124,7 +124,7 @@ function buildQuery(
     limit: pageSize,
     offset: page * pageSize,
     // Cover the NSE ≥ 50 Cr universe so the table stays in sync with DB.
-    scan_limit: 8000,
+    scan_limit: 2000,
   };
 }
 

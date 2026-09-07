@@ -289,18 +289,39 @@ At your registrar for **niveshguide.com**:
 
 Wait for HTTPS certificates (usually a few minutes).
 
-### 4. Bootstrap market data
+### 4. Load market data into Postgres
 
-Postgres starts empty. From a machine with Google/NSE access:
+Postgres starts empty. Prefer copying your local SQLite (full history):
 
 ```powershell
 cd d:\Projects\Trade\backend
 .\.venv\Scripts\Activate.ps1
-$env:DATABASE_URL = "postgresql+psycopg2://USER:PASS@HOST:5432/railway"
+# Use DATABASE_PUBLIC_URL (*.proxy.rlwy.net), not railway.internal
+$env:DATABASE_URL = "postgresql+psycopg2://USER:PASS@HOST.proxy.rlwy.net:PORT/railway"
+python scripts\migrate_sqlite_to_postgres.py --truncate
+```
+
+`--truncate` clears existing Postgres tables first. Large DBs can take 30–90+ minutes over the public proxy.
+
+If the run fails mid-way (SSL drop, timeout):
+
+```powershell
+python scripts\migrate_sqlite_to_postgres.py --resume
+```
+
+Trial Postgres volumes (~0.5 GB) fill before a full copy (~1.3M+ price rows). **Live Resize** the volume to ≥5 GB (Hobby) for a full migrate, or copy a lean slice (enough for dashboard/MAs):
+
+```powershell
+python scripts\migrate_sqlite_to_postgres.py --truncate --skip-tables stock_financial_periods --price-since 2026-01-01
+```
+
+Alternatively, rebuild without a local copy:
+
+```powershell
 python scripts\bootstrap_prod.py
 ```
 
-Use `--skip-sync` if Google OAuth is not available yet (indices + calculate only). Re-run after sheet credentials work.
+Use `--skip-sync` if Google OAuth is not available yet (indices + calculate only).
 
 ### 5. Smoke test
 

@@ -339,6 +339,21 @@ def industry_strength_by_stock_id(
     mcaps: dict[int, float] | None = None,
 ) -> dict[int, float]:
     """Map stock_id → industry/sector strength (0–100); multi-tag stocks use primary tag strength."""
+    # Only cache the default path (no injected metrics/mcaps) — used by screener/detail.
+    use_cache = metrics is None and mcaps is None
+    cache_key = None
+    if use_cache:
+        from cache.redis_cache import PREFIX_INDUSTRY, get_json, set_json
+        from datetime import date as date_cls
+
+        cache_key = f"{PREFIX_INDUSTRY}{date_cls.today().isoformat()}:c{min_constituents}"
+        cached = get_json(cache_key)
+        if isinstance(cached, dict):
+            try:
+                return {int(k): float(v) for k, v in cached.items()}
+            except (TypeError, ValueError):
+                pass
+
     metrics = metrics if metrics is not None else _load_metrics_by_stock(session)
     mcaps = mcaps if mcaps is not None else _load_mcaps_by_stock(session)
     stocks = session.scalars(select(Stock).where(Stock.is_active.is_(True))).all()
@@ -382,6 +397,11 @@ def industry_strength_by_stock_id(
         vals = [strength_by_label[t] for t in tags if t in strength_by_label]
         if vals:
             out[stock.id] = max(vals)
+
+    if use_cache and cache_key is not None:
+        from cache.redis_cache import set_json
+
+        set_json(cache_key, {str(k): v for k, v in out.items()}, 300)
     return out
 
 

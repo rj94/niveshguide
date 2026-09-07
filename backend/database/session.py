@@ -18,6 +18,12 @@ def _make_engine():
         # Avoid QueuePool exhaustion under concurrent FastAPI/UI requests.
         connect_args["check_same_thread"] = False
         engine_kwargs["poolclass"] = NullPool
+    else:
+        # Railway Postgres: survive proxy drops; modest pool for single worker.
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_size"] = 5
+        engine_kwargs["max_overflow"] = 10
+        engine_kwargs["pool_recycle"] = 300
     engine = create_engine(settings.database_url, **engine_kwargs)
     if settings.database_url.startswith("sqlite"):
 

@@ -31,14 +31,21 @@ import type { PortfolioResponse } from "@/types/portfolio";
 // 8010 by default: port 8000 is frequently blocked on Windows (WinError 10013).
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8010/api/v1";
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit & { revalidate?: number },
+): Promise<T> {
+  const { revalidate = 30, ...rest } = init ?? {};
+  const isServer = typeof window === "undefined";
   const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
+    ...rest,
     headers: {
       Accept: "application/json",
-      ...(init?.headers ?? {}),
+      ...(rest.headers ?? {}),
     },
-    cache: "no-store",
+    ...(isServer
+      ? { next: { revalidate } }
+      : { cache: "no-store" as RequestCache }),
   });
   if (!res.ok) {
     const detail = await res.text();
@@ -62,12 +69,14 @@ function appendParams(search: URLSearchParams, params: Record<string, unknown>) 
 export async function listStocks(params?: {
   q?: string;
   exchange?: string;
+  symbols?: string[];
   limit?: number;
   offset?: number;
 }): Promise<StockListResponse> {
   const search = new URLSearchParams();
   if (params?.q) search.set("q", params.q);
   if (params?.exchange) search.set("exchange", params.exchange);
+  if (params?.symbols?.length) search.set("symbols", params.symbols.join(","));
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.offset) search.set("offset", String(params.offset));
   const qs = search.toString();

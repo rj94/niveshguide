@@ -72,9 +72,21 @@ def run_strategy(
     if slug in NEEDS_BARS and universe:
         cap = BAR_CANDIDATE_CAP.get(slug, 300)
         candidates = universe[:cap]
-        bars_map = load_bars_for_stocks(session, [r.id for r in candidates])
-        for row in candidates:
-            enrich_from_bars(row, bars_map.get(row.id, []))
+        if slug == "canslim":
+            # Indicators usually already have SMAs/returns — skip ~100k-row load when complete
+            need_bars = [
+                r
+                for r in candidates
+                if r.sma_50 is None or r.sma_200 is None or r.return_3m_pct is None
+            ]
+            if need_bars:
+                bars_map = load_bars_for_stocks(session, [r.id for r in need_bars])
+                for row in need_bars:
+                    enrich_from_bars(row, bars_map.get(row.id, []))
+        else:
+            bars_map = load_bars_for_stocks(session, [r.id for r in candidates])
+            for row in candidates:
+                enrich_from_bars(row, bars_map.get(row.id, []))
 
     market = load_market_context(session, universe)
 

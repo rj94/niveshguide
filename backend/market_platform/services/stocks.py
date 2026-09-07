@@ -68,13 +68,21 @@ def list_stocks(
     *,
     q: str | None = None,
     exchange: str | None = None,
+    symbols: list[str] | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> StockListResponse:
     filters = [Stock.is_active.is_(True)]
     if exchange:
         filters.append(Stock.exchange == exchange.upper())
-    if q:
+    if symbols:
+        cleaned = [s.strip().upper() for s in symbols if s and s.strip()]
+        if cleaned:
+            filters.append(func.upper(Stock.symbol).in_(cleaned))
+            # Prefer exact symbol set over fuzzy q when both provided
+            limit = max(limit, len(cleaned))
+            offset = 0
+    if q and not symbols:
         needle = f"%{q.strip().upper()}%"
         filters.append(
             or_(func.upper(Stock.symbol).like(needle), func.upper(Stock.company_name).like(needle))
@@ -83,22 +91,33 @@ def list_stocks(
     stocks = session.scalars(
         select(Stock).where(*filters).order_by(Stock.symbol).offset(offset).limit(limit)
     ).all()
+    if not stocks:
+        return StockListResponse(items=[], total=total)
+
+    stock_ids = [s.id for s in stocks]
+    # Latest snapshot per stock (one query, take first row per stock_id)
+    snap_rows = session.scalars(
+        select(StockSnapshot)
+        .where(StockSnapshot.stock_id.in_(stock_ids))
+        .order_by(StockSnapshot.stock_id, desc(StockSnapshot.snapshot_date))
+    ).all()
+    snap_by_id: dict[int, StockSnapshot] = {}
+    for snap in snap_rows:
+        if snap.stock_id not in snap_by_id:
+            snap_by_id[snap.stock_id] = snap
+
+    priced_ids = {
+        int(sid)
+        for sid in session.scalars(
+            select(StockPrice.stock_id).where(StockPrice.stock_id.in_(stock_ids)).distinct()
+        ).all()
+    }
+
     items: list[StockSummary] = []
     for stock in stocks:
-        snap = session.scalar(
-            select(StockSnapshot)
-            .where(StockSnapshot.stock_id == stock.id)
-            .order_by(desc(StockSnapshot.snapshot_date))
-            .limit(1)
-        )
+        snap = snap_by_id.get(stock.id)
         ltp = _f(snap.ltp) if snap else None
         prev = _f(snap.prev_close) if snap else None
-        has_prices = (
-            session.scalar(
-                select(func.count()).select_from(StockPrice).where(StockPrice.stock_id == stock.id)
-            )
-            or 0
-        ) > 0
         items.append(
             StockSummary(
                 id=stock.id,
@@ -110,7 +129,7 @@ def list_stocks(
                 market_cap=_dec(snap.market_cap) if snap else None,
                 last_price=_dec(ltp),
                 change_pct=_pct_change(ltp, prev),
-                has_prices=has_prices,
+                has_prices=stock.id in priced_ids,
             )
         )
     return StockListResponse(items=items, total=total)

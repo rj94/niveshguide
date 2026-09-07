@@ -12,11 +12,23 @@ router = APIRouter()
 def list_stocks(
     q: str | None = None,
     exchange: str | None = Query(default=None),
+    symbols: str | None = Query(
+        default=None,
+        description="Comma-separated exact symbols (ticker batch)",
+    ),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_session),
 ) -> StockListResponse:
-    return stock_service.list_stocks(db, q=q, exchange=exchange, limit=limit, offset=offset)
+    symbol_list = [s.strip() for s in symbols.split(",")] if symbols else None
+    return stock_service.list_stocks(
+        db,
+        q=q,
+        exchange=exchange,
+        symbols=symbol_list,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{symbol}", response_model=StockDetail)

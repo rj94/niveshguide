@@ -228,40 +228,27 @@ def markets_overview(session: Session, *, use_cache: bool = True) -> MarketsOver
         if now - cached_at < _OVERVIEW_TTL_S:
             return cached
 
+    from cache.redis_cache import PREFIX_MARKETS, get_json, set_json
+
+    redis_key = f"{PREFIX_MARKETS}overview"
+    if use_cache:
+        cached_payload = get_json(redis_key)
+        if cached_payload is not None:
+            try:
+                result = MarketsOverviewResponse.model_validate(cached_payload)
+                _OVERVIEW_CACHE = (now, result)
+                return result
+            except Exception:  # noqa: BLE001
+                pass
+
     indices = _featured_index_cards(session)
 
-    # Live NSE quotes for sector ETFs (fallback to DB snapshots)
-    from ingestion.nse_equity_quotes import fetch_equity_quotes
-
-    etf_symbols = [sym for sym, _n, _k, _s in SECTOR_ETFS]
-    live_map: dict[str, dict] = {}
-    try:
-        live_map = fetch_equity_quotes(etf_symbols)
-    except Exception as exc:  # noqa: BLE001
-        logger = __import__("logging").getLogger(__name__)
-        logger.warning("Live ETF quotes failed: %s", exc)
-
+    # Serve from DB snapshots only on the request path (NSE live quotes are too slow/cold).
+    # Scheduler / scrape keeps snapshots fresh.
     sector_etfs: list[MarketQuoteCard] = []
     commodities: list[MarketQuoteCard] = []
     for symbol, name, kind, sector_name in SECTOR_ETFS:
-        spark: list[float] = []
-        stock = get_stock_by_symbol(session, symbol)
-        if stock is not None:
-            spark = _etf_sparkline(session, stock.id)
-
-        card: MarketQuoteCard | None = None
-        live = live_map.get(symbol.upper())
-        if live and live.get("ltp") is not None:
-            card = _card_from_live_quote(
-                symbol=symbol,
-                name=name,
-                kind=kind,
-                quote=live,
-                sparkline=spark,
-                sector_name=sector_name,
-            )
-        if card is None:
-            card = _card_from_etf(session, symbol, name, kind, sector_name=sector_name)
+        card = _card_from_etf(session, symbol, name, kind, sector_name=sector_name)
         if not card:
             continue
         if kind == "commodity":
@@ -282,6 +269,8 @@ def markets_overview(session: Session, *, use_cache: bool = True) -> MarketsOver
         as_of=as_of or date.today(),
     )
     _OVERVIEW_CACHE = (now, result)
+    if use_cache:
+        set_json(redis_key, result.model_dump(mode="json"), 30)
     return result
 
 
@@ -292,6 +281,19 @@ def list_market_indices(session: Session, *, use_cache: bool = True) -> MarketIn
         cached_at, cached_items = _LIST_CACHE
         if now - cached_at < _LIST_TTL_S:
             return MarketIndicesResponse(items=cached_items, as_of=cached_items[0].as_of if cached_items else date.today())
+
+    from cache.redis_cache import PREFIX_MARKETS, get_json, set_json
+
+    redis_key = f"{PREFIX_MARKETS}indices"
+    if use_cache:
+        cached_payload = get_json(redis_key)
+        if cached_payload is not None:
+            try:
+                result = MarketIndicesResponse.model_validate(cached_payload)
+                _LIST_CACHE = (now, result.items)
+                return result
+            except Exception:  # noqa: BLE001
+                pass
 
     rows = session.scalars(
         select(MarketIndex).where(MarketIndex.is_active.is_(True)).order_by(MarketIndex.key)
@@ -304,4 +306,7 @@ def list_market_indices(session: Session, *, use_cache: bool = True) -> MarketIn
 
     _LIST_CACHE = (now, items)
     as_of = items[0].as_of if items else date.today()
-    return MarketIndicesResponse(items=items, as_of=as_of)
+    result = MarketIndicesResponse(items=items, as_of=as_of)
+    if use_cache:
+        set_json(redis_key, result.model_dump(mode="json"), 60)
+    return result

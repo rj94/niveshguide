@@ -139,7 +139,7 @@ export function HomeDashboard(props: Props) {
             sort_by: "momentum_score",
             sort_dir: "desc",
             limit: 12,
-            scan_limit: 8000,
+            scan_limit: 2000,
           }).catch(() => null),
         ]);
         if (cancelled) return;

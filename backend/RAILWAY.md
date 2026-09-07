@@ -7,6 +7,7 @@
 #
 # Required env (Railway → Variables):
 #   DATABASE_URL=postgresql+psycopg2://...   # from Railway Postgres plugin
+#   REDIS_URL=${{Redis.REDIS_URL}}           # Railway Redis plugin (optional locally)
 #   CORS_ORIGINS=https://niveshguide.com,https://www.niveshguide.com
 #   TIMEZONE=Asia/Kolkata
 #   SCHEDULER_ENABLED=true
