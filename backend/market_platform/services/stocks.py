@@ -349,9 +349,15 @@ def _analysis_row(
     snapshot: StockSnapshot | None,
     *,
     sector_strength: float | None = None,
+    price_fallback: tuple[float | None, float | None] | None = None,
 ) -> StockAnalysisRow:
     ltp = _f(snapshot.ltp) if snapshot else None
     prev = _f(snapshot.prev_close) if snapshot else None
+    # Many small-caps have Yahoo OHLC (indicators) but no sheet snapshot — use last closes.
+    if ltp is None and price_fallback:
+        ltp = price_fallback[0]
+        if prev is None:
+            prev = price_fallback[1]
     ma3 = _f(indicator.ma_3)
     ma7 = _f(indicator.ma_7)
     ma20 = _f(indicator.ma_20)
@@ -496,6 +502,41 @@ def _avg_volume_1w_by_stock_id(session: Session, stock_ids: list[int]) -> dict[i
     return out
 
 
+def _latest_close_pair_by_stock_id(
+    session: Session, stock_ids: list[int]
+) -> dict[int, tuple[float | None, float | None]]:
+    """stock_id → (latest close, previous close) from stock_prices."""
+    if not stock_ids:
+        return {}
+    ranked = (
+        select(
+            StockPrice.stock_id.label("stock_id"),
+            StockPrice.close.label("close"),
+            func.row_number()
+            .over(partition_by=StockPrice.stock_id, order_by=StockPrice.price_date.desc())
+            .label("rn"),
+        )
+        .where(
+            StockPrice.stock_id.in_(stock_ids),
+            StockPrice.close.is_not(None),
+        )
+        .subquery()
+    )
+    rows = session.execute(
+        select(ranked.c.stock_id, ranked.c.close, ranked.c.rn).where(ranked.c.rn <= 2)
+    ).all()
+    latest: dict[int, float | None] = {}
+    prev: dict[int, float | None] = {}
+    for stock_id, close, rn in rows:
+        sid = int(stock_id)
+        val = _f(close)
+        if int(rn) == 1:
+            latest[sid] = val
+        elif int(rn) == 2:
+            prev[sid] = val
+    return {sid: (latest.get(sid), prev.get(sid)) for sid in latest}
+
+
 def _with_volume_1w(row: StockAnalysisRow, avg_1w: float | None) -> StockAnalysisRow:
     data = row.model_dump()
     data["avg_volume_1w"] = avg_1w
@@ -541,6 +582,13 @@ def list_stock_analysis(
     from market_platform.services.sectors import industry_strength_by_stock_id
 
     strength_map = industry_strength_by_stock_id(session)
+    missing_ltp_ids = [
+        int(stock.id)
+        for stock, _indicator, snapshot in rows
+        if snapshot is None or snapshot.ltp is None
+    ]
+    close_fallback = _latest_close_pair_by_stock_id(session, missing_ltp_ids)
+
     items: list[StockAnalysisRow] = []
     fresh_flags: dict[str, bool] = {}
     for stock, indicator, snapshot in rows:
@@ -552,7 +600,11 @@ def list_stock_analysis(
             if needle not in stock.symbol.upper() and needle not in name:
                 continue
         row = _analysis_row(
-            stock, indicator, snapshot, sector_strength=strength_map.get(stock.id)
+            stock,
+            indicator,
+            snapshot,
+            sector_strength=strength_map.get(stock.id),
+            price_fallback=close_fallback.get(stock.id),
         )
         if price_above_50_above_200 is not None and row.price_above_50_above_200 is not price_above_50_above_200:
             if bool(row.price_above_50_above_200) != price_above_50_above_200:
