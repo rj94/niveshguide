@@ -381,37 +381,40 @@ function DataTable({
 }
 
 function SectorBars({ sectors }: { sectors: SectorCell[] }) {
-  const display = sectors.filter((s) => s.scoreChange1w != null).slice(0, 8);
-  const values = display.map((s) => Math.abs(s.scoreChange1w ?? 0));
-  const maxAbs = Math.max(0.01, ...values);
+  const display = sectors.filter((s) => s.score > 0).slice(0, 8);
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
       <div className="mb-1 flex items-end justify-between gap-3">
         <h2 className="text-base font-bold text-slate-100">Sector Performance</h2>
-        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">1M return</p>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Strength score</p>
       </div>
       <p className="mb-4 text-[11px] text-slate-500">
-        Top industries by 1-month return (group average of constituent stocks).
+        Top industries by sector strength (0–100 blend of momentum, breadth, and returns).
       </p>
       <div className="space-y-3">
         {display.length === 0 ? (
-          <p className="text-xs text-slate-500">No sector returns available yet.</p>
+          <p className="text-xs text-slate-500">No sector strength scores available yet.</p>
         ) : (
           display.map((sector) => {
-            const ret = sector.scoreChange1w ?? 0;
-            const widthPct = Math.min(100, Math.max(8, (Math.abs(ret) / maxAbs) * 100));
+            const score = sector.score;
+            const widthPct = Math.min(100, Math.max(8, score));
             return (
-              <div key={sector.name} className="grid grid-cols-[100px_1fr_52px] items-center gap-3 text-xs">
+              <div key={sector.name} className="grid grid-cols-[100px_1fr_40px] items-center gap-3 text-xs">
                 <span className="truncate text-slate-400" title={sector.name}>
                   {sector.name}
                 </span>
                 <span className="h-2 overflow-hidden rounded-full bg-white/5">
                   <span
-                    className={cn("block h-full rounded-full", ret >= 0 ? "bg-emerald-400" : "bg-red-400")}
+                    className={cn(
+                      "block h-full rounded-full",
+                      score >= 60 ? "bg-emerald-400" : score >= 40 ? "bg-amber-400" : "bg-red-400",
+                    )}
                     style={{ width: `${widthPct}%` }}
                   />
                 </span>
-                <span className={cn("text-right font-bold tabular-nums", pctClass(ret))}>{formatPct(ret, 1)}</span>
+                <span className="text-right font-bold tabular-nums text-slate-100">
+                  {formatNumber(score, { maximumFractionDigits: 0 })}
+                </span>
               </div>
             );
           })

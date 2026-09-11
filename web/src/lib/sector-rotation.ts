@@ -96,16 +96,11 @@ export function buildRotationItems(
   return rotation.slice(0, max);
 }
 
-/** Top industries by |performance %|, then strength. */
+/** Top industries by sector strength score. */
 export function rankSectorsForPerformance(rows: StrengthRow[], limit = 8): SectorCell[] {
   const scored = rows
     .map(mapSectorCell)
-    .filter((s) => s.name && s.scoreChange1w != null)
-    .sort((a, b) => {
-      const ca = Math.abs(a.scoreChange1w ?? 0);
-      const cb = Math.abs(b.scoreChange1w ?? 0);
-      if (cb !== ca) return cb - ca;
-      return b.score - a.score;
-    });
+    .filter((s) => s.name && s.score > 0)
+    .sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
 }
