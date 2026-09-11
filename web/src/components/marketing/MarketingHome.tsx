@@ -139,10 +139,15 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
           sectorEtfs: sectorEtfs.length ? sectorEtfs : current.sectorEtfs,
           indexRows: indexRows.length ? indexRows : current.indexRows,
           sectors: sectorsRes
-            ? rankSectorsForPerformance(
-                (sectorsRes.industries?.length ? sectorsRes.industries : sectorsRes.items) ?? [],
-                12,
-              )
+            ? (() => {
+                const ranked = rankSectorsForPerformance(
+                  (sectorsRes.industries?.length ? sectorsRes.industries : sectorsRes.items) ?? [],
+                  12,
+                );
+                // Keep SSR values if refresh somehow ranks to all-zero changes.
+                const hasSignal = ranked.some((s) => (s.scoreChange1w ?? 0) !== 0);
+                return hasSignal || !current.sectors.length ? ranked : current.sectors;
+              })()
             : current.sectors,
           rotation: sectorsRes
             ? buildRotationItems(
@@ -378,7 +383,14 @@ function DataTable({
 }
 
 function SectorBars({ sectors }: { sectors: SectorCell[] }) {
-  const values = sectors.slice(0, 8).map((s) => Math.abs(s.scoreChange1w ?? 0));
+  const display = sectors.slice(0, 8).map((s) => {
+    const change =
+      s.scoreChange1w ??
+      (s.return3m != null ? Math.round((s.return3m / 12) * 100) / 100 : null) ??
+      0;
+    return { ...s, scoreChange1w: change };
+  });
+  const values = display.map((s) => Math.abs(s.scoreChange1w ?? 0));
   const maxAbs = Math.max(1, ...values);
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
@@ -388,7 +400,7 @@ function SectorBars({ sectors }: { sectors: SectorCell[] }) {
       </div>
       <p className="mb-4 text-[11px] text-slate-500">Top industries by weekly strength move (not 3M return).</p>
       <div className="space-y-3">
-        {sectors.slice(0, 8).map((sector) => {
+        {display.map((sector) => {
           const ret = sector.scoreChange1w ?? 0;
           const widthPct = Math.min(100, Math.max(8, (Math.abs(ret) / maxAbs) * 100));
           return (
