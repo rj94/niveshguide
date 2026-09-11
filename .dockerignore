@@ -1,0 +1,17 @@
+.git
+.github
+.codex-remote-attachments
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.venv_local
+**/node_modules
+web
+mobile
+backend/.venv
+backend/.venv_local
+backend/data/screener_in/cache
+backend/data/**/*.html
+backend/_tmp*
+backend/_priority*
+**/*.log
