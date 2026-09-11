@@ -292,16 +292,18 @@ def _group_stats(
     elif primary_3m is not None:
         gaining = primary_3m > 0
 
-    # Weekly strength move: ~5/20 of 20d momentum acceleration; fall back to ~1W of 1M return.
+    # 1W/1M score change: use acceleration only when it is a real non-zero move.
+    # Otherwise expose group 1M return (and a 1W proxy) so the UI is not all zeros.
     score_change_1w = None
     score_change_1m = None
     score_change_3m = primary_3m
-    if avg_accel is not None:
+    if avg_accel is not None and abs(float(avg_accel)) >= 0.05:
         score_change_1w = round(float(avg_accel) * (5.0 / 20.0), 4)
         score_change_1m = round(float(avg_accel), 4)
-    elif primary_1m is not None:
-        score_change_1w = round(float(primary_1m) / 4.0, 4)
+    if score_change_1m is None and primary_1m is not None:
         score_change_1m = round(float(primary_1m), 4)
+    if score_change_1w is None and primary_1m is not None:
+        score_change_1w = round(float(primary_1m) / 4.0, 4)
 
     return {
         "return_1m": primary_1m,

@@ -7,18 +7,32 @@ function num(value: string | number | null | undefined): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/** True weekly score delta from the API — ignore 0/null placeholders. */
+function weeklyScoreDelta(s: StrengthRow): number | null {
+  const w = num(s.score_change_1w);
+  if (w == null || w === 0) return null;
+  return w;
+}
+
+/**
+ * Value shown on Sector Performance.
+ * Production currently omits score_change_1w; return_1m is the real group return.
+ */
+export function sectorPerformancePct(s: StrengthRow): number | null {
+  const weekly = weeklyScoreDelta(s);
+  if (weekly != null) return weekly;
+  const m1 = num(s.return_1m);
+  if (m1 != null) return Math.round(m1 * 100) / 100;
+  const m3 = num(s.return_3m);
+  if (m3 != null) return Math.round((m3 / 3) * 100) / 100;
+  return null;
+}
+
 export function mapSectorCell(s: StrengthRow): SectorCell {
-  const scoreChange1w =
-    num(s.score_change_1w) ??
-    // API may omit 1W until redeployed; approximate from 1M return (~4 weeks).
-    (() => {
-      const m1 = num(s.return_1m);
-      return m1 == null ? null : Math.round((m1 / 4) * 100) / 100;
-    })();
   return {
     name: s.name,
     score: num(s.strength_score) ?? 0,
-    scoreChange1w,
+    scoreChange1w: sectorPerformancePct(s),
     return3m: num(s.return_3m),
     return3mCw: num(s.return_3m_cw),
     return3mSource: s.return_3m_source,
@@ -82,15 +96,12 @@ export function buildRotationItems(
   return rotation.slice(0, max);
 }
 
-/** Top industries by |1W score change|, fallback strength. Clear % for Sector Performance. */
+/** Top industries by |performance %|, then strength. */
 export function rankSectorsForPerformance(rows: StrengthRow[], limit = 8): SectorCell[] {
   const scored = rows
     .map(mapSectorCell)
-    .filter((s) => s.name)
+    .filter((s) => s.name && s.scoreChange1w != null)
     .sort((a, b) => {
-      const aHas = a.scoreChange1w != null;
-      const bHas = b.scoreChange1w != null;
-      if (aHas !== bHas) return aHas ? -1 : 1;
       const ca = Math.abs(a.scoreChange1w ?? 0);
       const cb = Math.abs(b.scoreChange1w ?? 0);
       if (cb !== ca) return cb - ca;

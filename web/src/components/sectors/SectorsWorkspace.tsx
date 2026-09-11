@@ -12,6 +12,7 @@ import {
   type SectorColumnId,
   type SectorPrefs,
 } from "@/lib/sector-columns";
+import { sectorPerformancePct } from "@/lib/sector-rotation";
 import { cn } from "@/lib/utils";
 import { listSectors } from "@/services/api";
 import type { StrengthRow } from "@/types/sector";
@@ -26,9 +27,9 @@ function strengthLabel(score: number | null): string {
   return "Very Weak";
 }
 
-function num(value: string | null | undefined): number | null {
+function num(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
+  const n = typeof value === "string" ? Number(value) : value;
   return Number.isNaN(n) ? null : n;
 }
 
@@ -60,12 +61,12 @@ function sortRows(rows: StrengthRow[], prefs: SectorPrefs): StrengthRow[] {
         bv = scoreOf(b);
         break;
       case "change_1m":
-        av = num(a.score_change_1m) ?? -999;
-        bv = num(b.score_change_1m) ?? -999;
+        av = num(a.score_change_1m) ?? num(a.return_1m) ?? -999;
+        bv = num(b.score_change_1m) ?? num(b.return_1m) ?? -999;
         break;
       case "change_1w":
-        av = num(a.score_change_1w) ?? -999;
-        bv = num(b.score_change_1w) ?? -999;
+        av = sectorPerformancePct(a) ?? -999;
+        bv = sectorPerformancePct(b) ?? -999;
         break;
       case "breadth":
         av = num(a.breadth_score) ?? -1;
@@ -193,12 +194,12 @@ function StrengthTable({
                   ) : null}
                   {visible.has("change_1w") ? (
                     <td className="px-4 py-3">
-                      <ChangeCell value={num(row.score_change_1w)} />
+                      <ChangeCell value={sectorPerformancePct(row)} />
                     </td>
                   ) : null}
                   {visible.has("change_1m") ? (
                     <td className="px-4 py-3">
-                      <ChangeCell value={num(row.score_change_1m)} />
+                      <ChangeCell value={num(row.score_change_1m) ?? ret1m} />
                     </td>
                   ) : null}
                   {visible.has("change_3m") ? (

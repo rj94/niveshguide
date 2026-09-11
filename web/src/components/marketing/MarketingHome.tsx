@@ -144,9 +144,7 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
                   (sectorsRes.industries?.length ? sectorsRes.industries : sectorsRes.items) ?? [],
                   12,
                 );
-                // Keep SSR values if refresh somehow ranks to all-zero changes.
-                const hasSignal = ranked.some((s) => (s.scoreChange1w ?? 0) !== 0);
-                return hasSignal || !current.sectors.length ? ranked : current.sectors;
+                return ranked.length ? ranked : current.sectors;
               })()
             : current.sectors,
           rotation: sectorsRes
@@ -383,41 +381,41 @@ function DataTable({
 }
 
 function SectorBars({ sectors }: { sectors: SectorCell[] }) {
-  const display = sectors.slice(0, 8).map((s) => {
-    const change =
-      s.scoreChange1w ??
-      (s.return3m != null ? Math.round((s.return3m / 12) * 100) / 100 : null) ??
-      0;
-    return { ...s, scoreChange1w: change };
-  });
+  const display = sectors.filter((s) => s.scoreChange1w != null).slice(0, 8);
   const values = display.map((s) => Math.abs(s.scoreChange1w ?? 0));
-  const maxAbs = Math.max(1, ...values);
+  const maxAbs = Math.max(0.01, ...values);
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
       <div className="mb-1 flex items-end justify-between gap-3">
         <h2 className="text-base font-bold text-slate-100">Sector Performance</h2>
-        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">1W score change</p>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">1M return</p>
       </div>
-      <p className="mb-4 text-[11px] text-slate-500">Top industries by weekly strength move (not 3M return).</p>
+      <p className="mb-4 text-[11px] text-slate-500">
+        Top industries by 1-month return (group average of constituent stocks).
+      </p>
       <div className="space-y-3">
-        {display.map((sector) => {
-          const ret = sector.scoreChange1w ?? 0;
-          const widthPct = Math.min(100, Math.max(8, (Math.abs(ret) / maxAbs) * 100));
-          return (
-            <div key={sector.name} className="grid grid-cols-[100px_1fr_52px] items-center gap-3 text-xs">
-              <span className="truncate text-slate-400" title={sector.name}>
-                {sector.name}
-              </span>
-              <span className="h-2 overflow-hidden rounded-full bg-white/5">
-                <span
-                  className={cn("block h-full rounded-full", ret >= 0 ? "bg-emerald-400" : "bg-red-400")}
-                  style={{ width: `${widthPct}%` }}
-                />
-              </span>
-              <span className={cn("text-right font-bold tabular-nums", pctClass(ret))}>{formatPct(ret, 1)}</span>
-            </div>
-          );
-        })}
+        {display.length === 0 ? (
+          <p className="text-xs text-slate-500">No sector returns available yet.</p>
+        ) : (
+          display.map((sector) => {
+            const ret = sector.scoreChange1w ?? 0;
+            const widthPct = Math.min(100, Math.max(8, (Math.abs(ret) / maxAbs) * 100));
+            return (
+              <div key={sector.name} className="grid grid-cols-[100px_1fr_52px] items-center gap-3 text-xs">
+                <span className="truncate text-slate-400" title={sector.name}>
+                  {sector.name}
+                </span>
+                <span className="h-2 overflow-hidden rounded-full bg-white/5">
+                  <span
+                    className={cn("block h-full rounded-full", ret >= 0 ? "bg-emerald-400" : "bg-red-400")}
+                    style={{ width: `${widthPct}%` }}
+                  />
+                </span>
+                <span className={cn("text-right font-bold tabular-nums", pctClass(ret))}>{formatPct(ret, 1)}</span>
+              </div>
+            );
+          })
+        )}
       </div>
     </article>
   );
