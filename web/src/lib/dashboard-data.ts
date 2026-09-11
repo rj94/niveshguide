@@ -29,6 +29,7 @@ export type SectorCell = {
   return3m: number | null;
   return3mCw: number | null;
   return3mSource: "index" | "cap_weight" | "equal_weight" | string | null;
+  state: string | null;
 };
 
 export type IndexRow = {

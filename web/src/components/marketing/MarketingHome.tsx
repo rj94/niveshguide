@@ -382,44 +382,56 @@ function DataTable({
 
 function SectorBars({ sectors }: { sectors: SectorCell[] }) {
   const display = sectors.filter((s) => s.score > 0).slice(0, 8);
+  const leading = display.filter((s) => (s.state || "").toLowerCase() === "leading");
+  const improving = display.filter((s) => (s.state || "").toLowerCase() === "improving");
   return (
     <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <div className="mb-1 flex items-end justify-between gap-3">
-        <h2 className="text-base font-bold text-slate-100">Sector Performance</h2>
-        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Strength score</p>
-      </div>
+      <h2 className="mb-1 text-base font-bold text-slate-100">Sector Performance</h2>
       <p className="mb-4 text-[11px] text-slate-500">
-        Top industries by sector strength (0–100 blend of momentum, breadth, and returns).
+        Top industries by sector strength score, with rotation state and 3M return.
       </p>
-      <div className="space-y-3">
-        {display.length === 0 ? (
-          <p className="text-xs text-slate-500">No sector strength scores available yet.</p>
-        ) : (
-          display.map((sector) => {
-            const score = sector.score;
-            const widthPct = Math.min(100, Math.max(8, score));
-            return (
-              <div key={sector.name} className="grid grid-cols-[100px_1fr_40px] items-center gap-3 text-xs">
-                <span className="truncate text-slate-400" title={sector.name}>
-                  {sector.name}
-                </span>
-                <span className="h-2 overflow-hidden rounded-full bg-white/5">
-                  <span
-                    className={cn(
-                      "block h-full rounded-full",
-                      score >= 60 ? "bg-emerald-400" : score >= 40 ? "bg-amber-400" : "bg-red-400",
-                    )}
-                    style={{ width: `${widthPct}%` }}
-                  />
-                </span>
-                <span className="text-right font-bold tabular-nums text-slate-100">
-                  {formatNumber(score, { maximumFractionDigits: 0 })}
-                </span>
+      <div className="space-y-2.5">
+        {display.map((sector) => {
+          const ret = sector.return3m ?? sector.return3mCw;
+          const badge = sector.state || "—";
+          return (
+            <Link
+              key={sector.name}
+              href={`/sectors/sector/${encodeURIComponent(sector.name)}`}
+              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/5 bg-[#0a0e14] px-3 py-2.5 transition hover:border-emerald-400/25 hover:bg-[#0f151c]"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-200">{sector.name}</span>
+                  <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", rotationTone(sector.state))}>
+                    {badge}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Strength {formatNumber(sector.score, { maximumFractionDigits: 0 })}
+                  {ret != null ? ` · 3M ${formatPct(ret, 1)}` : ""}
+                </p>
               </div>
-            );
-          })
-        )}
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wide text-slate-600">Score</p>
+                <p className="text-sm font-bold tabular-nums text-slate-100">
+                  {formatNumber(sector.score, { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+        {display.length === 0 ? (
+          <p className="py-6 text-center text-xs text-slate-500">No sector scores yet.</p>
+        ) : null}
       </div>
+      {display.length > 0 ? (
+        <p className="mt-3 text-[10px] text-slate-600">
+          {leading.length ? `${leading.length} leading` : "No leading"}
+          {" · "}
+          {improving.length ? `${improving.length} improving` : "No improving"}
+        </p>
+      ) : null}
     </article>
   );
 }

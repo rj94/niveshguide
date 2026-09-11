@@ -36,6 +36,7 @@ export function mapSectorCell(s: StrengthRow): SectorCell {
     return3m: num(s.return_3m),
     return3mCw: num(s.return_3m_cw),
     return3mSource: s.return_3m_source,
+    state: s.rotation_state,
   };
 }
 
