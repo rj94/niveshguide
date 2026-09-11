@@ -138,18 +138,36 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
           indices: indices.length ? indices : current.indices,
           sectorEtfs: sectorEtfs.length ? sectorEtfs : current.sectorEtfs,
           indexRows: indexRows.length ? indexRows : current.indexRows,
-          sectors: rankSectorsForPerformance(sectorsRes?.items ?? [], 12),
-          rotation: buildRotationItems(sectorsRes?.items ?? [], { max: 8 }),
-          momentumLeaders: (momentumRes?.items ?? [])
-            .map((row) => {
-              const score = num(row.momentum_score ?? row.overall);
-              if (score === null) return null;
-              return { symbol: row.symbol, name: row.company_name, score, category: row.momentum_category, changePct: row.change_pct, ltp: num(row.ltp) };
-            })
-            .filter((x): x is HomeState["momentumLeaders"][number] => x !== null),
-          gainers: filterMovers((gainersRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { softGainers: true, limit: 5 }),
-          losers: filterMovers((losersRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { limit: 5 }),
-          byVolume: filterMovers((volumeRes?.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { volumeMover: true, limit: 5 }),
+          sectors: sectorsRes
+            ? rankSectorsForPerformance(
+                (sectorsRes.industries?.length ? sectorsRes.industries : sectorsRes.items) ?? [],
+                12,
+              )
+            : current.sectors,
+          rotation: sectorsRes
+            ? buildRotationItems(
+                (sectorsRes.industries?.length ? sectorsRes.industries : sectorsRes.items) ?? [],
+                { max: 8 },
+              )
+            : current.rotation,
+          momentumLeaders: momentumRes
+            ? (momentumRes.items ?? [])
+                .map((row) => {
+                  const score = num(row.momentum_score ?? row.overall);
+                  if (score === null) return null;
+                  return { symbol: row.symbol, name: row.company_name, score, category: row.momentum_category, changePct: row.change_pct, ltp: num(row.ltp) };
+                })
+                .filter((x): x is HomeState["momentumLeaders"][number] => x !== null)
+            : current.momentumLeaders,
+          gainers: gainersRes
+            ? filterMovers((gainersRes.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { softGainers: true, limit: 5 })
+            : current.gainers,
+          losers: losersRes
+            ? filterMovers((losersRes.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { limit: 5 })
+            : current.losers,
+          byVolume: volumeRes
+            ? filterMovers((volumeRes.items ?? []).map(mapMover).filter((x): x is MoverRow => x !== null), { volumeMover: true, limit: 5 })
+            : current.byVolume,
           asOf: overview.as_of ?? sectorsRes?.as_of ?? current.asOf,
         }));
         setLiveLabel(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));

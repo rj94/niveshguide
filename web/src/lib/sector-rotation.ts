@@ -79,7 +79,11 @@ export function buildRotationItems(
 export function rankSectorsForPerformance(rows: StrengthRow[], limit = 8): SectorCell[] {
   const scored = rows
     .map(mapSectorCell)
+    .filter((s) => s.name)
     .sort((a, b) => {
+      const aHas = a.scoreChange1w != null;
+      const bHas = b.scoreChange1w != null;
+      if (aHas !== bHas) return aHas ? -1 : 1;
       const ca = Math.abs(a.scoreChange1w ?? 0);
       const cb = Math.abs(b.scoreChange1w ?? 0);
       if (cb !== ca) return cb - ca;

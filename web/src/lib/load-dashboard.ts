@@ -254,7 +254,8 @@ export async function loadDashboard(): Promise<DashboardPayload> {
   const watchlist = await loadWatchlistSeed();
   const ticker = await loadTickerItems();
 
-  const allSectorRows = sectorsRes?.items ?? [];
+  const allSectorRows =
+    (sectorsRes?.industries?.length ? sectorsRes.industries : sectorsRes?.items) ?? [];
   const sectors: SectorCell[] = rankSectorsForPerformance(allSectorRows, 12);
   const rotation: RotationItem[] = buildRotationItems(allSectorRows, {
     preferDistinctFrom: sectors,

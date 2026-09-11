@@ -292,6 +292,17 @@ def _group_stats(
     elif primary_3m is not None:
         gaining = primary_3m > 0
 
+    # Weekly strength move: ~5/20 of 20d momentum acceleration; fall back to ~1W of 1M return.
+    score_change_1w = None
+    score_change_1m = None
+    score_change_3m = primary_3m
+    if avg_accel is not None:
+        score_change_1w = round(float(avg_accel) * (5.0 / 20.0), 4)
+        score_change_1m = round(float(avg_accel), 4)
+    elif primary_1m is not None:
+        score_change_1w = round(float(primary_1m) / 4.0, 4)
+        score_change_1m = round(float(primary_1m), 4)
+
     return {
         "return_1m": primary_1m,
         "return_3m": primary_3m,  # used in strength blend (CW preferred)
@@ -304,6 +315,9 @@ def _group_stats(
         "above_50dma_pct": above_50dma_pct,
         "avg_accel": avg_accel,
         "is_gaining": gaining,
+        "score_change_1w": score_change_1w,
+        "score_change_1m": score_change_1m,
+        "score_change_3m": score_change_3m,
     }
 
 
@@ -450,6 +464,14 @@ def _row_return_kwargs(fields: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _score_change_kwargs(st: dict[str, float | None | str]) -> dict[str, Any]:
+    return {
+        "score_change_1w": _dec(st.get("score_change_1w")),
+        "score_change_1m": _dec(st.get("score_change_1m")),
+        "score_change_3m": _dec(st.get("score_change_3m")),
+    }
+
+
 def _rotation_state(
     *,
     strength: float | None,
@@ -580,6 +602,7 @@ def list_sectors(
                 ),
                 sector_name=name,
                 sector_strength_score=_dec(strength),
+                **_score_change_kwargs(st),
                 **_row_return_kwargs(ret_fields),
             )
         )
@@ -623,6 +646,7 @@ def list_sectors(
                 ),
                 industry_name=name,
                 industry_strength_score=_dec(strength),
+                **_score_change_kwargs(st),
                 **_row_return_kwargs(ret_fields),
             )
         )
