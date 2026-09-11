@@ -8,10 +8,17 @@ function num(value: string | number | null | undefined): number | null {
 }
 
 export function mapSectorCell(s: StrengthRow): SectorCell {
+  const scoreChange1w =
+    num(s.score_change_1w) ??
+    // API may omit 1W until redeployed; approximate from 1M return (~4 weeks).
+    (() => {
+      const m1 = num(s.return_1m);
+      return m1 == null ? null : Math.round((m1 / 4) * 100) / 100;
+    })();
   return {
     name: s.name,
     score: num(s.strength_score) ?? 0,
-    scoreChange1w: num(s.score_change_1w),
+    scoreChange1w,
     return3m: num(s.return_3m),
     return3mCw: num(s.return_3m_cw),
     return3mSource: s.return_3m_source,
