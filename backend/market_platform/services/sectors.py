@@ -12,8 +12,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from database.models import (
+    IndustryDailyMetrics,
     MarketIndex,
     MarketIndexPrice,
+    SectorDailyMetrics,
     Stock,
     StockIndicator,
     StockIndexMembership,
@@ -370,6 +372,40 @@ def industry_strength_by_stock_id(
             except (TypeError, ValueError):
                 pass
 
+    if metrics is None:
+        from database.models import IndustryDailyMetrics as _IndustryDaily
+        from market_platform.services.sector_metrics import industry_labels, latest_metrics_date
+
+        latest = latest_metrics_date(session)
+        if latest is not None:
+            persisted = session.scalars(
+                select(_IndustryDaily).where(_IndustryDaily.metric_date == latest)
+            ).all()
+            strength_by_label = {
+                row.industry_name: float(row.industry_score)
+                for row in persisted
+                if row.industry_score is not None
+            }
+            if strength_by_label:
+                stocks = session.scalars(select(Stock).where(Stock.is_active.is_(True))).all()
+                out: dict[int, float] = {}
+                for stock in stocks:
+                    tags = industry_labels(stock)
+                    if not tags:
+                        continue
+                    primary = tags[0]
+                    if primary in strength_by_label:
+                        out[stock.id] = strength_by_label[primary]
+                        continue
+                    vals = [strength_by_label[t] for t in tags if t in strength_by_label]
+                    if vals:
+                        out[stock.id] = max(vals)
+                if use_cache and cache_key is not None:
+                    from cache.redis_cache import set_json
+
+                    set_json(cache_key, {str(k): v for k, v in out.items()}, 300)
+                return out
+
     metrics = metrics if metrics is not None else _load_metrics_by_stock(session)
     mcaps = mcaps if mcaps is not None else _load_mcaps_by_stock(session)
     stocks = session.scalars(select(Stock).where(Stock.is_active.is_(True))).all()
@@ -513,6 +549,204 @@ def _stock_industry_tags(stock: Stock) -> list[str]:
     return [primary] if primary else []
 
 
+def _alerts(value: Any) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value if item]
+    return []
+
+
+def _is_gaining(state: str | None, change_5d: Any) -> bool:
+    if state in {"Leading", "Improving"}:
+        return True
+    try:
+        return change_5d is not None and float(change_5d) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def _fnum(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _overlay_primary_return(
+    session: Session,
+    name: str,
+    *,
+    stored: float | None,
+    cw: float | None,
+    ew: float | None,
+) -> tuple[float | None, str | None, float | None]:
+    key = SECTORAL_INDEX_KEYS.get(name)
+    idx = _index_return_pct(session, key) if key else None
+    if idx is not None:
+        return idx, "index", idx
+    if stored is not None:
+        source = "cap_weight" if cw is not None else "equal_weight"
+        return stored, source, None
+    if cw is not None:
+        return cw, "cap_weight", None
+    if ew is not None:
+        return ew, "equal_weight", None
+    return None, None, None
+
+
+def _sector_row_from_metrics(
+    session: Session, row: SectorDailyMetrics, *, rank: int | None = None
+) -> SectorScoreRow:
+    stored = _fnum(row.return_3m)
+    cw = _fnum(row.return_3m_cw)
+    ew = _fnum(row.return_3m_ew)
+    display, source, idx = _overlay_primary_return(
+        session, row.sector_name, stored=stored, cw=cw, ew=ew
+    )
+    strength = _fnum(row.sector_score)
+    change_5d = _fnum(row.score_change_5d)
+    change_21d = _fnum(row.score_change_21d)
+    state = row.rotation_state
+    return SectorScoreRow(
+        name=row.sector_name,
+        parent_sector=None,
+        as_of=row.metric_date,
+        strength_score=_dec(strength),
+        momentum_score=_dec(row.momentum_score),
+        relative_strength_score=_dec(row.rs_score),
+        breadth_score=_dec(row.breadth_score),
+        volume_score=_dec(row.volume_score),
+        breakout_score=_dec(row.breakout_score),
+        trend_score=_dec(row.trend_score),
+        emerging_score=_dec(row.emerging_score),
+        rank=rank,
+        score_change_1w=_dec(change_5d),
+        score_change_1m=_dec(change_21d),
+        score_change_3m=_dec(row.return_3m),
+        score_change_5d=_dec(change_5d),
+        score_change_21d=_dec(change_21d),
+        rotation_state=state,
+        is_gaining_strength=_is_gaining(state, change_5d),
+        constituent_count=row.constituent_count,
+        return_1m=_dec(row.return_1m),
+        return_3m=_dec(display),
+        return_3m_cw=_dec(cw),
+        return_3m_ew=_dec(ew),
+        return_3m_index=_dec(idx),
+        return_3m_source=source,
+        above_21dma_pct=_dec(row.pct_above_21dma),
+        above_50dma_pct=_dec(row.pct_above_50dma),
+        above_200dma_pct=_dec(row.pct_above_200dma),
+        breakout_20d_pct=_dec(row.pct_breakout_20d),
+        breakout_50d_pct=_dec(row.pct_breakout_50d),
+        breakout_52w_pct=_dec(row.pct_breakout_52w),
+        volume_expansion=_dec(row.volume_expansion),
+        alerts=_alerts(row.alerts),
+        sector_name=row.sector_name,
+        sector_strength_score=_dec(strength),
+    )
+
+
+def _industry_row_from_metrics(
+    row: IndustryDailyMetrics, *, rank: int | None = None
+) -> IndustryScoreRow:
+    strength = _fnum(row.industry_score)
+    change_5d = _fnum(row.score_change_5d)
+    change_21d = _fnum(row.score_change_21d)
+    state = row.rotation_state
+    source = (
+        "cap_weight"
+        if row.return_3m_cw is not None
+        else ("equal_weight" if row.return_3m is not None else None)
+    )
+    return IndustryScoreRow(
+        name=row.industry_name,
+        parent_sector=row.parent_sector,
+        as_of=row.metric_date,
+        strength_score=_dec(strength),
+        momentum_score=_dec(row.momentum_score),
+        relative_strength_score=_dec(row.rs_score),
+        breadth_score=_dec(row.breadth_score),
+        volume_score=_dec(row.volume_score),
+        breakout_score=_dec(row.breakout_score),
+        emerging_score=_dec(row.emerging_score),
+        rank=rank,
+        score_change_1w=_dec(change_5d),
+        score_change_1m=_dec(change_21d),
+        score_change_3m=_dec(row.return_3m),
+        score_change_5d=_dec(change_5d),
+        score_change_21d=_dec(change_21d),
+        rotation_state=state,
+        is_gaining_strength=_is_gaining(state, change_5d),
+        constituent_count=row.constituent_count,
+        return_1m=_dec(row.return_1m),
+        return_3m=_dec(row.return_3m),
+        return_3m_cw=_dec(row.return_3m_cw),
+        return_3m_ew=_dec(row.return_3m_ew),
+        return_3m_source=source,
+        above_21dma_pct=_dec(row.pct_above_21dma),
+        above_50dma_pct=_dec(row.pct_above_50dma),
+        above_200dma_pct=_dec(row.pct_above_200dma),
+        breakout_20d_pct=_dec(row.pct_breakout_20d),
+        breakout_50d_pct=_dec(row.pct_breakout_50d),
+        breakout_52w_pct=_dec(row.pct_breakout_52w),
+        volume_expansion=_dec(row.volume_expansion),
+        alerts=_alerts(row.alerts),
+        industry_name=row.industry_name,
+        industry_strength_score=_dec(strength),
+    )
+
+
+def _load_persisted_lists(
+    session: Session,
+    *,
+    min_constituents: int,
+) -> tuple[list[SectorScoreRow], list[IndustryScoreRow], date | None]:
+    from market_platform.services.sector_metrics import ensure_latest_metrics
+
+    as_of = ensure_latest_metrics(session)
+    if as_of is None:
+        return [], [], None
+    sector_rows = session.scalars(
+        select(SectorDailyMetrics).where(SectorDailyMetrics.metric_date == as_of)
+    ).all()
+    industry_rows = session.scalars(
+        select(IndustryDailyMetrics).where(IndustryDailyMetrics.metric_date == as_of)
+    ).all()
+    sectors = [
+        _sector_row_from_metrics(session, row)
+        for row in sector_rows
+        if (row.constituent_count or 0) >= min_constituents
+    ]
+    industries = [
+        _industry_row_from_metrics(row)
+        for row in industry_rows
+        if (row.constituent_count or 0) >= min_constituents
+    ]
+    sectors.sort(
+        key=lambda r: (
+            float(r.strength_score) if r.strength_score is not None else -1.0,
+            r.constituent_count or 0,
+        ),
+        reverse=True,
+    )
+    industries.sort(
+        key=lambda r: (
+            float(r.strength_score) if r.strength_score is not None else -1.0,
+            r.constituent_count or 0,
+        ),
+        reverse=True,
+    )
+    for idx, row in enumerate(sectors, start=1):
+        row.rank = idx
+    for idx, row in enumerate(industries, start=1):
+        row.rank = idx
+    return sectors, industries, as_of
+
+
 def list_sectors(
     session: Session,
     *,
@@ -520,197 +754,63 @@ def list_sectors(
     min_constituents: int = 0,
     gaining_only: bool = False,
 ) -> SectorListResponse:
-    as_of = date.today()
-    metrics = _load_metrics_by_stock(session)
-    mcaps = _load_mcaps_by_stock(session)
-
-    stocks = session.scalars(select(Stock).where(Stock.is_active.is_(True))).all()
-    sector_groups: dict[str, list[Stock]] = defaultdict(list)
-    sector_seen: dict[str, set[int]] = defaultdict(set)
-    industry_groups: dict[str, list[Stock]] = defaultdict(list)
-    industry_parent: dict[str, str | None] = {}
-    industry_seen: dict[str, set[int]] = defaultdict(set)
-
-    # Explode broad_industry tags → multi-membership sector/industry buckets
-    for stock in stocks:
-        tags = _stock_industry_tags(stock)
-        primary = tags[0] if tags else None
-        for label in tags:
-            if stock.id not in sector_seen[label]:
-                sector_groups[label].append(stock)
-                sector_seen[label].add(stock.id)
-            if stock.id not in industry_seen[label]:
-                industry_groups[label].append(stock)
-                industry_seen[label].add(stock.id)
-            industry_parent.setdefault(label, primary)
-
-    # Precompute group stats for percentile universe (sectors first, then industries)
-    sector_stats: dict[str, dict[str, float | None | str]] = {}
-    for name, members in sector_groups.items():
-        if len(members) < min_constituents:
-            continue
-        sector_stats[name] = _group_stats(members, metrics, mcaps)
-
-    industry_stats: dict[str, dict[str, float | None | str]] = {}
-    for name, members in industry_groups.items():
-        if len(members) < min_constituents:
-            continue
-        industry_stats[name] = _group_stats(members, metrics, mcaps)
-
-    sector_3m_universe = [
-        float(st["return_3m"]) for st in sector_stats.values() if st.get("return_3m") is not None
-    ]
-    industry_3m_universe = [
-        float(st["return_3m"]) for st in industry_stats.values() if st.get("return_3m") is not None
-    ]
-
-    sector_rows: list[SectorScoreRow] = []
-    for name, members in sector_groups.items():
-        if name not in sector_stats:
-            continue
-        st = sector_stats[name]
-        # Industry labels have no 1:1 official sectoral index → CW/EW display
-        ret_fields = _attach_return_fields(session, name=name, st=st, is_sectoral=False)
-        blend_ret = ret_fields.get("blend_return_3m")
-        strength = _blend_strength(
-            momentum_avg=st.get("momentum_score") if isinstance(st.get("momentum_score"), (int, float)) else None,
-            return_3m_pct=blend_ret,
-            breadth=st.get("breadth_score") if isinstance(st.get("breadth_score"), (int, float)) else None,
-            universe_3m=sector_3m_universe,
-        )
-        rs_bucket = None
-        if blend_ret is not None and sector_3m_universe:
-            rs_bucket = percentile_to_bucket_score(
-                percentile_rank(float(blend_ret), sector_3m_universe)
-            )
-        gaining = bool(st.get("is_gaining"))
-        sector_rows.append(
-            SectorScoreRow(
-                name=name,
-                parent_sector=None,
-                as_of=as_of,
-                strength_score=_dec(strength),
-                momentum_score=_dec(st.get("momentum_score")),
-                relative_strength_score=_dec(rs_bucket),
-                breadth_score=_dec(st.get("breadth_score")),
-                constituent_count=len(members),
-                return_1m=_dec(st.get("return_1m")),
-                above_50dma_pct=_dec(st.get("above_50dma_pct")),
-                is_gaining_strength=gaining,
-                rotation_state=_rotation_state(
-                    strength=strength,
-                    is_gaining=gaining,
-                    avg_accel=st.get("avg_accel") if isinstance(st.get("avg_accel"), (int, float)) else None,
-                ),
-                sector_name=name,
-                sector_strength_score=_dec(strength),
-                **_score_change_kwargs(st),
-                **_row_return_kwargs(ret_fields),
-            )
-        )
-
-    industry_rows: list[IndustryScoreRow] = []
-    for name, members in industry_groups.items():
-        if name not in industry_stats:
-            continue
-        st = industry_stats[name]
-        ret_fields = _attach_return_fields(session, name=name, st=st, is_sectoral=False)
-        blend_ret = ret_fields.get("blend_return_3m")
-        strength = _blend_strength(
-            momentum_avg=st.get("momentum_score") if isinstance(st.get("momentum_score"), (int, float)) else None,
-            return_3m_pct=blend_ret,
-            breadth=st.get("breadth_score") if isinstance(st.get("breadth_score"), (int, float)) else None,
-            universe_3m=industry_3m_universe,
-        )
-        rs_bucket = None
-        if blend_ret is not None and industry_3m_universe:
-            rs_bucket = percentile_to_bucket_score(
-                percentile_rank(float(blend_ret), industry_3m_universe)
-            )
-        gaining = bool(st.get("is_gaining"))
-        industry_rows.append(
-            IndustryScoreRow(
-                name=name,
-                parent_sector=industry_parent.get(name),
-                as_of=as_of,
-                strength_score=_dec(strength),
-                momentum_score=_dec(st.get("momentum_score")),
-                relative_strength_score=_dec(rs_bucket),
-                breadth_score=_dec(st.get("breadth_score")),
-                constituent_count=len(members),
-                return_1m=_dec(st.get("return_1m")),
-                above_50dma_pct=_dec(st.get("above_50dma_pct")),
-                is_gaining_strength=gaining,
-                rotation_state=_rotation_state(
-                    strength=strength,
-                    is_gaining=gaining,
-                    avg_accel=st.get("avg_accel") if isinstance(st.get("avg_accel"), (int, float)) else None,
-                ),
-                industry_name=name,
-                industry_strength_score=_dec(strength),
-                **_score_change_kwargs(st),
-                **_row_return_kwargs(ret_fields),
-            )
-        )
-
-    # Rank by strength descending
-    sector_rows.sort(
-        key=lambda r: (
-            float(r.strength_score) if r.strength_score is not None else -1.0,
-            r.constituent_count or 0,
-        ),
-        reverse=True,
-    )
-    industry_rows.sort(
-        key=lambda r: (
-            float(r.strength_score) if r.strength_score is not None else -1.0,
-            r.constituent_count or 0,
-        ),
-        reverse=True,
-    )
-    for idx, row in enumerate(sector_rows, start=1):
-        row.rank = idx
-    for idx, row in enumerate(industry_rows, start=1):
-        row.rank = idx
-
-    items = sector_rows
-    industries = industry_rows
+    items, industries, as_of = _load_persisted_lists(session, min_constituents=min_constituents)
     if gaining_only:
         items = [row for row in items if row.is_gaining_strength]
         industries = [row for row in industries if row.is_gaining_strength]
     gaining = [row for row in items if row.is_gaining_strength][:20]
     return SectorListResponse(
-        items=items[: max(1, limit)],
+        items=items[: max(1, limit)] if items else [],
         industries=industries[:500],
         gaining=gaining,
         as_of=as_of,
     )
 
 
+def list_sector_industries(session: Session, name: str) -> list[IndustryScoreRow]:
+    name = _norm_name(name)
+    _, industries, _ = _load_persisted_lists(session, min_constituents=0)
+    matched = [row for row in industries if (row.parent_sector or "").lower() == name.lower()]
+    if matched:
+        return matched
+    return [row for row in industries if row.name.lower() == name.lower()]
+
+
 def get_sector(session: Session, name: str) -> SectorScoreRow:
     name = _norm_name(name)
-    payload = list_sectors(session, limit=500, min_constituents=0)
-    for row in payload.items:
+    items, industries, as_of = _load_persisted_lists(session, min_constituents=0)
+    nested = [row for row in industries if (row.parent_sector or "").lower() == name.lower()]
+    for row in items:
         if row.name.lower() == name.lower():
+            row.industries = nested
             return row
     count = session.scalar(
-        select(func.count()).select_from(Stock).where(Stock.sector == name, Stock.is_active.is_(True))
+        select(func.count()).select_from(Stock).where(
+            or_(
+                func.lower(Stock.sector) == name.lower(),
+                func.lower(Stock.broad_sector) == name.lower(),
+            ),
+            Stock.is_active.is_(True),
+        )
     ) or 0
     return SectorScoreRow(
         name=name,
-        as_of=date.today(),
+        as_of=as_of or date.today(),
         constituent_count=int(count),
         sector_name=name,
+        industries=nested,
     )
 
 
 def get_industry(session: Session, name: str) -> IndustryScoreRow:
     name = _norm_name(name)
-    payload = list_sectors(session, limit=2000, min_constituents=0)
-    for row in payload.industries:
+    _, industries, as_of = _load_persisted_lists(session, min_constituents=0)
+    for row in industries:
         if row.name.lower() == name.lower():
             return row
-    stock = session.scalar(select(Stock).where(Stock.industry == name).limit(1))
+    stock = session.scalar(
+        select(Stock).where(func.lower(Stock.industry) == name.lower()).limit(1)
+    )
     count_stock = session.scalar(
         select(func.count()).select_from(Stock).where(
             func.lower(Stock.industry) == name.lower(),
@@ -725,7 +825,7 @@ def get_industry(session: Session, name: str) -> IndustryScoreRow:
     return IndustryScoreRow(
         name=name,
         parent_sector=stock.sector if stock else None,
-        as_of=date.today(),
+        as_of=as_of or date.today(),
         constituent_count=max(int(count_stock), int(count_memb)),
         industry_name=name,
     )
@@ -744,8 +844,25 @@ def _minimal_analysis_row(stock: Stock) -> StockAnalysisRow:
     )
 
 
+def _stocks_matching_sector(session: Session, tag: str) -> set[int]:
+    tag_norm = tag.strip().lower()
+    if not tag_norm:
+        return set()
+    return set(
+        session.scalars(
+            select(Stock.id).where(
+                Stock.is_active.is_(True),
+                or_(
+                    func.lower(Stock.sector) == tag_norm,
+                    func.lower(Stock.broad_sector) == tag_norm,
+                ),
+            )
+        ).all()
+    )
+
+
 def _stocks_matching_tag(session: Session, tag: str) -> set[int]:
-    """Match stocks whose primary sector/industry OR exploded broad_industry tags equal tag."""
+    """Match stocks whose industry OR exploded broad_industry tags equal tag."""
     tag_norm = tag.strip().lower()
     if not tag_norm:
         return set()
@@ -753,14 +870,10 @@ def _stocks_matching_tag(session: Session, tag: str) -> set[int]:
         session.scalars(
             select(Stock.id).where(
                 Stock.is_active.is_(True),
-                or_(
-                    func.lower(Stock.sector) == tag_norm,
-                    func.lower(Stock.industry) == tag_norm,
-                ),
+                func.lower(Stock.industry) == tag_norm,
             )
         ).all()
     )
-    # broad_industry may store pipe-joined tags — scan active stocks with tags
     for stock in session.scalars(
         select(Stock).where(
             Stock.is_active.is_(True),
@@ -800,7 +913,7 @@ def _constituent_stocks(
 
     sector_stock_ids: set[int] | None = None
     if sector:
-        sector_stock_ids = _stocks_matching_tag(session, sector)
+        sector_stock_ids = _stocks_matching_sector(session, sector)
 
     rows = session.execute(latest_screener_query(session)).all()
     strength_map = industry_strength_by_stock_id(session)

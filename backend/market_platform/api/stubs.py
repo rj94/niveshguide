@@ -64,6 +64,13 @@ def get_sector(name: str, db: Session = Depends(get_session)) -> SectorScoreRow:
     return sectors_service.get_sector(db, name)
 
 
+@router_sectors.get("/by-name/{name}/industries", response_model=list[IndustryScoreRow])
+def sector_industries(name: str, db: Session = Depends(get_session)) -> list[IndustryScoreRow]:
+    from market_platform.services import sectors as sectors_service
+
+    return sectors_service.list_sector_industries(db, name)
+
+
 @router_sectors.get("/by-name/{name}/stocks", response_model=StockAnalysisResponse)
 def sector_stocks(
     name: str,

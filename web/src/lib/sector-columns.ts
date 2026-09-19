@@ -4,11 +4,16 @@ export type SectorColumnId =
   | "parent"
   | "score"
   | "state"
-  | "change_1w"
-  | "change_1m"
-  | "change_3m"
+  | "rs"
   | "momentum"
   | "breadth"
+  | "volume"
+  | "breakout"
+  | "trend"
+  | "change_5d"
+  | "change_21d"
+  | "change_1w"
+  | "change_1m"
   | "return_1m"
   | "names";
 
@@ -22,36 +27,43 @@ export const SECTOR_COLUMN_DEFS: {
   { id: "parent", label: "Sector", defaultVisible: true },
   { id: "score", label: "Score", defaultVisible: true },
   { id: "state", label: "State", defaultVisible: true },
-  { id: "change_1w", label: "1W Δ", defaultVisible: true },
-  { id: "change_1m", label: "1M Δ", defaultVisible: true },
-  { id: "change_3m", label: "3M Δ", defaultVisible: false },
-  { id: "momentum", label: "Momentum", defaultVisible: false },
+  { id: "rs", label: "RS", defaultVisible: true },
+  { id: "momentum", label: "Momentum", defaultVisible: true },
   { id: "breadth", label: "Breadth", defaultVisible: true },
-  { id: "return_1m", label: "1M Ret", defaultVisible: true },
+  { id: "volume", label: "Volume", defaultVisible: true },
+  { id: "breakout", label: "Breakout", defaultVisible: true },
+  { id: "trend", label: "Trend", defaultVisible: true },
+  { id: "change_5d", label: "5D Δ", defaultVisible: true },
+  { id: "change_21d", label: "21D Δ", defaultVisible: true },
+  { id: "change_1w", label: "1W Δ", defaultVisible: false },
+  { id: "change_1m", label: "1M Δ", defaultVisible: false },
+  { id: "return_1m", label: "1M Ret", defaultVisible: false },
   { id: "names", label: "Names", defaultVisible: true },
 ];
 
-export const SECTOR_PREF_KEY = "sectors.prefs.v1";
+export const SECTOR_PREF_KEY = "sectors.prefs.v2";
 
 export type SectorPrefs = {
-  sortBy: "rank" | "score" | "change_1m" | "change_1w" | "breadth" | "names";
+  sortBy: "rank" | "score" | "change_5d" | "change_21d" | "change_1m" | "change_1w" | "breadth" | "names";
   sortDir: "asc" | "desc";
   minConstituents: number;
   gainingOnly: boolean;
   showGaining: boolean;
   showSectors: boolean;
   showIndustries: boolean;
+  showScatter: boolean;
   columns: SectorColumnId[];
 };
 
 export const DEFAULT_SECTOR_PREFS: SectorPrefs = {
   sortBy: "rank",
   sortDir: "asc",
-  minConstituents: 3,
+  minConstituents: 5,
   gainingOnly: false,
   showGaining: true,
   showSectors: true,
   showIndustries: true,
+  showScatter: true,
   columns: SECTOR_COLUMN_DEFS.filter((c) => c.defaultVisible).map((c) => c.id),
 };
 

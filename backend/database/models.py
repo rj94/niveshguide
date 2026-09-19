@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -330,3 +331,98 @@ class StockIndexMembership(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     stock: Mapped[Stock] = relationship(back_populates="index_memberships")
+
+
+class SectorDailyMetrics(Base):
+    """EOD sector strength snapshot (unique on sector_name + metric_date)."""
+
+    __tablename__ = "sector_daily_metrics"
+    __table_args__ = (
+        UniqueConstraint("sector_name", "metric_date", name="uq_sector_daily_name_date"),
+        Index("idx_sector_daily_date", "metric_date"),
+    )
+
+    id: Mapped[int] = mapped_column(PK, primary_key=True, autoincrement=True)
+    sector_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    metric_date: Mapped[date] = mapped_column(Date, nullable=False)
+    rs_score: Mapped[float | None] = mapped_column(Numeric)
+    momentum_score: Mapped[float | None] = mapped_column(Numeric)
+    breadth_score: Mapped[float | None] = mapped_column(Numeric)
+    volume_score: Mapped[float | None] = mapped_column(Numeric)
+    breakout_score: Mapped[float | None] = mapped_column(Numeric)
+    trend_score: Mapped[float | None] = mapped_column(Numeric)
+    sector_score: Mapped[float | None] = mapped_column(Numeric)
+    emerging_score: Mapped[float | None] = mapped_column(Numeric)
+    pct_above_21dma: Mapped[float | None] = mapped_column(Numeric)
+    pct_above_50dma: Mapped[float | None] = mapped_column(Numeric)
+    pct_above_200dma: Mapped[float | None] = mapped_column(Numeric)
+    pct_positive_5d: Mapped[float | None] = mapped_column(Numeric)
+    pct_positive_21d: Mapped[float | None] = mapped_column(Numeric)
+    pct_breakout_20d: Mapped[float | None] = mapped_column(Numeric)
+    pct_breakout_50d: Mapped[float | None] = mapped_column(Numeric)
+    pct_breakout_52w: Mapped[float | None] = mapped_column(Numeric)
+    pct_price_up_volume_up: Mapped[float | None] = mapped_column(Numeric)
+    pct_volume_gt_1_5x: Mapped[float | None] = mapped_column(Numeric)
+    volume_expansion: Mapped[float | None] = mapped_column(Numeric)
+    return_1m: Mapped[float | None] = mapped_column(Numeric)
+    return_3m: Mapped[float | None] = mapped_column(Numeric)
+    return_3m_cw: Mapped[float | None] = mapped_column(Numeric)
+    return_3m_ew: Mapped[float | None] = mapped_column(Numeric)
+    score_change_1d: Mapped[float | None] = mapped_column(Numeric)
+    score_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    score_change_21d: Mapped[float | None] = mapped_column(Numeric)
+    rs_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    momentum_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    breadth_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    rotation_state: Mapped[str | None] = mapped_column(String(20))
+    constituent_count: Mapped[int | None] = mapped_column(Integer)
+    alerts: Mapped[Any | None] = mapped_column(JSONType)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class IndustryDailyMetrics(Base):
+    """EOD industry strength snapshot (unique on industry_name + metric_date)."""
+
+    __tablename__ = "industry_daily_metrics"
+    __table_args__ = (
+        UniqueConstraint("industry_name", "metric_date", name="uq_industry_daily_name_date"),
+        Index("idx_industry_daily_date", "metric_date"),
+        Index("idx_industry_daily_parent", "parent_sector"),
+    )
+
+    id: Mapped[int] = mapped_column(PK, primary_key=True, autoincrement=True)
+    industry_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    parent_sector: Mapped[str | None] = mapped_column(String(120))
+    metric_date: Mapped[date] = mapped_column(Date, nullable=False)
+    rs_score: Mapped[float | None] = mapped_column(Numeric)
+    momentum_score: Mapped[float | None] = mapped_column(Numeric)
+    breadth_score: Mapped[float | None] = mapped_column(Numeric)
+    volume_score: Mapped[float | None] = mapped_column(Numeric)
+    breakout_score: Mapped[float | None] = mapped_column(Numeric)
+    industry_score: Mapped[float | None] = mapped_column(Numeric)
+    emerging_score: Mapped[float | None] = mapped_column(Numeric)
+    pct_above_21dma: Mapped[float | None] = mapped_column(Numeric)
+    pct_above_50dma: Mapped[float | None] = mapped_column(Numeric)
+    pct_above_200dma: Mapped[float | None] = mapped_column(Numeric)
+    pct_positive_5d: Mapped[float | None] = mapped_column(Numeric)
+    pct_positive_21d: Mapped[float | None] = mapped_column(Numeric)
+    pct_breakout_20d: Mapped[float | None] = mapped_column(Numeric)
+    pct_breakout_50d: Mapped[float | None] = mapped_column(Numeric)
+    pct_breakout_52w: Mapped[float | None] = mapped_column(Numeric)
+    pct_price_up_volume_up: Mapped[float | None] = mapped_column(Numeric)
+    pct_volume_gt_1_5x: Mapped[float | None] = mapped_column(Numeric)
+    volume_expansion: Mapped[float | None] = mapped_column(Numeric)
+    return_1m: Mapped[float | None] = mapped_column(Numeric)
+    return_3m: Mapped[float | None] = mapped_column(Numeric)
+    return_3m_cw: Mapped[float | None] = mapped_column(Numeric)
+    return_3m_ew: Mapped[float | None] = mapped_column(Numeric)
+    score_change_1d: Mapped[float | None] = mapped_column(Numeric)
+    score_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    score_change_21d: Mapped[float | None] = mapped_column(Numeric)
+    rs_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    momentum_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    breadth_change_5d: Mapped[float | None] = mapped_column(Numeric)
+    rotation_state: Mapped[str | None] = mapped_column(String(20))
+    constituent_count: Mapped[int | None] = mapped_column(Integer)
+    alerts: Mapped[Any | None] = mapped_column(JSONType)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

@@ -138,7 +138,7 @@ export function StockSearch({ initialQuery = "", className }: Props) {
                   <button
                     type="button"
                     onClick={() => goTo(item.symbol, item.exchange)}
-                    className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-white/[0.04]"
+                    className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-[var(--hover)]"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">

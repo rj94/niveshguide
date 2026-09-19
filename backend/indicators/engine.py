@@ -351,6 +351,12 @@ def calculate_all(session: Session, calc_date: date | None = None) -> int:
 
     session.commit()
     try:
+        from market_platform.services.sector_metrics import persist_after_indicators
+
+        persist_after_indicators(session, calc_date)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         from cache.redis_cache import invalidate_market_caches
 
         invalidate_market_caches()

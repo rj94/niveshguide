@@ -8,7 +8,6 @@ import {
   BookOpen,
   Crosshair,
   Funnel,
-  LineChart,
   Search,
   Star,
   TrendingUp,
@@ -27,16 +26,6 @@ import {
 import { cn } from "@/lib/utils";
 import { getMarketsOverview, listSectors, screenStocks } from "@/services/api";
 import type { StockAnalysisRow } from "@/types/stock";
-
-const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/screener", label: "Screener" },
-  { href: "/momentum", label: "Momentum" },
-  { href: "/volume-gainer", label: "Volume" },
-  { href: "/analysis", label: "Strategies" },
-  { href: "/watchlist", label: "Watchlist" },
-  { href: "/news", label: "Learn" },
-] as const;
 
 const POPULAR = ["HDFC Bank", "Reliance", "TCS", "IRFC", "RVNL", "SBI", "Adani", "HAL"];
 
@@ -61,7 +50,7 @@ function num(value: string | number | null | undefined): number | null {
 }
 
 function pctClass(value: number | null | undefined) {
-  return (value ?? 0) >= 0 ? "text-emerald-300" : "text-red-300";
+  return (value ?? 0) >= 0 ? "text-[var(--up)]" : "text-[var(--down)]";
 }
 
 function mapMover(row: StockAnalysisRow): MoverRow | null {
@@ -189,62 +178,40 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#080b0f] text-slate-100">
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0b0f14]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 lg:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-400 text-[#07110d]">
-              <LineChart className="h-4 w-4" strokeWidth={2.4} />
-            </span>
-            <span className="text-base font-bold text-white">NiveshGuide</span>
-          </Link>
-          <nav className="hidden flex-1 items-center justify-center gap-1 lg:flex">
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className={cn("rounded-md px-2.5 py-1.5 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white", link.href === "/" && "text-emerald-300")}>
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <MarketingSearch size="nav" variant="dark" className="hidden w-56 md:block xl:w-72" placeholder="Search stocks (e.g. TCS)" />
-            <Link href="/watchlist" className="rounded-md bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-[#06110d] transition hover:bg-emerald-400">Login</Link>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-[var(--background)] text-[var(--ink)]">
       <main className="mx-auto max-w-7xl px-4 pb-14 lg:px-6">
         <section className="grid min-h-[420px] gap-8 py-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:items-center lg:py-14">
           <div>
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.9)]" />
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/20 bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_14px_var(--glow-strong)]" />
               Live market dashboard
             </p>
-            <h1 className="max-w-2xl text-4xl font-extrabold leading-tight tracking-normal text-slate-100 sm:text-6xl">
+            <h1 className="max-w-2xl text-4xl font-extrabold leading-tight tracking-normal text-[var(--ink)] sm:text-6xl">
               Better Data.
-              <span className="block text-emerald-400">Smarter Investing.</span>
+              <span className="block text-[var(--accent)]">Smarter Investing.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
+            <p className="mt-5 max-w-xl text-base leading-7 text-[var(--ink-soft)]">
               Discover opportunities, analyse trends and make informed investment decisions - all in one place.
             </p>
             <div className="mt-8 max-w-xl">
-              <MarketingSearch size="hero" variant="dark" />
+              <MarketingSearch size="hero" />
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="text-slate-500">Popular</span>
-              {POPULAR.map((label) => <span key={label} className="rounded-full border border-white/8 px-2.5 py-1 text-slate-400">{label}</span>)}
+              <span className="text-[var(--ink-muted)]">Popular</span>
+              {POPULAR.map((label) => <span key={label} className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[var(--ink-soft)]">{label}</span>)}
             </div>
           </div>
-          <div className="relative min-h-[270px] overflow-hidden rounded-lg border border-white/8 bg-[#0f151d] p-7 shadow-2xl shadow-black/30">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_35%,rgba(16,185,129,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_55%)]" />
+          <div className="relative min-h-[270px] overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface-elevated)] p-7 shadow-2xl shadow-[var(--shadow)]">
+            <div className="marketing-hero-glow absolute inset-0" />
             <div className="relative flex h-full flex-col justify-between">
-              <blockquote className="max-w-sm text-xl font-bold leading-snug text-slate-100">"A disciplined investor today, a wealthier tomorrow."</blockquote>
+              <blockquote className="max-w-sm text-xl font-bold leading-snug text-[var(--ink)]">"A disciplined investor today, a wealthier tomorrow."</blockquote>
               <div className="mt-10 grid grid-cols-[1fr_auto] items-end gap-5">
-                <div className="space-y-2 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                <div className="space-y-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--ink-muted)]">
                   {["Track", "Analyse", "Discover", "Invest", "Grow"].map((word) => <p key={word}>{word}</p>)}
                 </div>
-                <TrendingUp className="h-28 w-28 text-emerald-400" strokeWidth={1.5} />
+                <TrendingUp className="h-28 w-28 text-[var(--accent)]" strokeWidth={1.5} />
               </div>
-              <p className="mt-4 text-xs text-slate-500"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />Live · {liveLabel}</p>
+              <p className="mt-4 text-xs text-[var(--ink-muted)]"><span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />Live · {liveLabel}</p>
             </div>
           </div>
         </section>
@@ -257,10 +224,10 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
           {FEATURES.map((feature) => {
             const Icon = feature.icon;
             return (
-              <Link key={feature.href} href={feature.href} className="group min-h-28 rounded-lg border border-white/7 bg-[#0d1219] p-4 transition hover:border-emerald-400/30 hover:bg-[#111923]">
+              <Link key={feature.href} href={feature.href} className="group min-h-28 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-elevated)]">
                 <Icon className={cn("mb-4 h-5 w-5", feature.tone)} />
-                <h2 className="text-sm font-bold text-slate-100">{feature.title}</h2>
-                <p className="mt-1 text-[11px] leading-4 text-slate-500">{feature.text}</p>
+                <h2 className="text-sm font-bold text-[var(--ink)]">{feature.title}</h2>
+                <p className="mt-1 text-[11px] leading-4 text-[var(--ink-muted)]">{feature.text}</p>
               </Link>
             );
           })}
@@ -294,9 +261,9 @@ export function MarketingHome({ data }: { data: DashboardPayload }) {
 
 function IndexTile({ card }: { card: IndexCard }) {
   return (
-    <article className="rounded-lg border border-white/7 bg-[#0d1219] p-4">
-      <p className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-500">{card.name}</p>
-      <p className="mt-2 text-lg font-bold tabular-nums text-slate-100">{formatNumber(card.value, { maximumFractionDigits: 2 })}</p>
+    <article className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4">
+      <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[var(--ink-muted)]">{card.name}</p>
+      <p className="mt-2 text-lg font-bold tabular-nums text-[var(--ink)]">{formatNumber(card.value, { maximumFractionDigits: 2 })}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <p className={cn("text-[11px] font-semibold tabular-nums", pctClass(card.changePct))}>{formatNumber(card.change, { maximumFractionDigits: 2 })} ({formatPct(card.changePct)})</p>
         {card.sparkline.length >= 5 ? (
@@ -323,15 +290,15 @@ function DataTable({
   viewLabel?: string;
 }) {
   return (
-    <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
+    <article className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-slate-100">{title}</h2>
-        <Link href={href} className="shrink-0 text-[11px] font-semibold text-emerald-300 hover:text-emerald-200">
+        <h2 className="text-base font-bold text-[var(--ink)]">{title}</h2>
+        <Link href={href} className="shrink-0 text-[11px] font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">
           {viewLabel}
         </Link>
       </div>
       <table className="w-full table-fixed text-left text-xs">
-        <thead className="text-[10px] uppercase tracking-wide text-slate-600">
+        <thead className="text-[10px] uppercase tracking-wide text-[var(--ink-muted)]">
           <tr>
             <th className="w-8 pb-3 font-semibold">#</th>
             <th className="pb-3 font-semibold">Stock</th>
@@ -340,23 +307,23 @@ function DataTable({
             <th className="w-14 pb-3 text-right font-semibold">{score ? "Score" : ""}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-[var(--line)]">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={5} className="py-8 text-center text-slate-500">
+              <td colSpan={5} className="py-8 text-center text-[var(--ink-muted)]">
                 No live data yet.
               </td>
             </tr>
           ) : (
             rows.map((row) => (
               <tr key={row.symbol}>
-                <td className="py-3 tabular-nums text-slate-600">{row.rank}</td>
+                <td className="py-3 tabular-nums text-[var(--ink-muted)]">{row.rank}</td>
                 <td className="py-3">
-                  <Link href={`/stocks/${row.symbol}`} className="font-bold text-emerald-300 hover:text-emerald-200">
+                  <Link href={`/stocks/${row.symbol}`} className="font-bold text-[var(--accent)] hover:text-[var(--accent-hover)]">
                     {row.symbol}
                   </Link>
                 </td>
-                <td className="py-3 text-right font-semibold tabular-nums text-slate-200">
+                <td className="py-3 text-right font-semibold tabular-nums text-[var(--ink)]">
                   {formatNumber(row.price, { maximumFractionDigits: 2 })}
                 </td>
                 <td className={cn("py-3 text-right font-bold tabular-nums", pctClass(row.changePct))}>
@@ -364,7 +331,7 @@ function DataTable({
                 </td>
                 <td className="py-3 text-right">
                   {score ? (
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300/40 text-[11px] font-bold text-emerald-300">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--accent)]/40 text-[11px] font-bold text-[var(--accent)]">
                       {formatNumber(row.score, { maximumFractionDigits: 0 })}
                     </span>
                   ) : (
@@ -385,9 +352,9 @@ function SectorBars({ sectors }: { sectors: SectorCell[] }) {
   const leading = display.filter((s) => (s.state || "").toLowerCase() === "leading");
   const improving = display.filter((s) => (s.state || "").toLowerCase() === "improving");
   return (
-    <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <h2 className="mb-1 text-base font-bold text-slate-100">Sector Performance</h2>
-      <p className="mb-4 text-[11px] text-slate-500">
+    <article className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+      <h2 className="mb-1 text-base font-bold text-[var(--ink)]">Sector Performance</h2>
+      <p className="mb-4 text-[11px] text-[var(--ink-muted)]">
         Top industries by sector strength score, with rotation state and 3M return.
       </p>
       <div className="space-y-2.5">
@@ -398,23 +365,23 @@ function SectorBars({ sectors }: { sectors: SectorCell[] }) {
             <Link
               key={sector.name}
               href={`/sectors/sector/${encodeURIComponent(sector.name)}`}
-              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/5 bg-[#0a0e14] px-3 py-2.5 transition hover:border-emerald-400/25 hover:bg-[#0f151c]"
+              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 transition hover:border-[var(--accent)]/40 hover:bg-[var(--surface-elevated)]"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm font-semibold text-slate-200">{sector.name}</span>
+                  <span className="truncate text-sm font-semibold text-[var(--ink)]">{sector.name}</span>
                   <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", rotationTone(sector.state))}>
                     {badge}
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] text-slate-500">
+                <p className="mt-1 text-[10px] text-[var(--ink-muted)]">
                   Strength {formatNumber(sector.score, { maximumFractionDigits: 0 })}
                   {ret != null ? ` · 3M ${formatPct(ret, 1)}` : ""}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wide text-slate-600">Score</p>
-                <p className="text-sm font-bold tabular-nums text-slate-100">
+                <p className="text-[10px] uppercase tracking-wide text-[var(--ink-muted)]">Score</p>
+                <p className="text-sm font-bold tabular-nums text-[var(--ink)]">
                   {formatNumber(sector.score, { maximumFractionDigits: 0 })}
                 </p>
               </div>
@@ -422,11 +389,11 @@ function SectorBars({ sectors }: { sectors: SectorCell[] }) {
           );
         })}
         {display.length === 0 ? (
-          <p className="py-6 text-center text-xs text-slate-500">No sector scores yet.</p>
+          <p className="py-6 text-center text-xs text-[var(--ink-muted)]">No sector scores yet.</p>
         ) : null}
       </div>
       {display.length > 0 ? (
-        <p className="mt-3 text-[10px] text-slate-600">
+        <p className="mt-3 text-[10px] text-[var(--ink-muted)]">
           {leading.length ? `${leading.length} leading` : "No leading"}
           {" · "}
           {improving.length ? `${improving.length} improving` : "No improving"}
@@ -438,20 +405,20 @@ function SectorBars({ sectors }: { sectors: SectorCell[] }) {
 
 function rotationTone(state: string | null | undefined) {
   const s = (state || "").toLowerCase();
-  if (s === "improving") return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
-  if (s === "weakening") return "border-amber-400/40 bg-amber-400/10 text-amber-300";
-  if (s === "leading") return "border-sky-400/40 bg-sky-400/10 text-sky-300";
-  if (s === "lagging") return "border-red-400/40 bg-red-400/10 text-red-300";
-  return "border-white/10 bg-white/5 text-slate-400";
+  if (s === "improving") return "border-[var(--accent)]/40 bg-[var(--accent-soft)] text-[var(--accent)]";
+  if (s === "weakening") return "border-[var(--warn)]/40 bg-[var(--warn)]/10 text-[var(--warn)]";
+  if (s === "leading") return "border-[var(--up)]/40 bg-[var(--up-soft)] text-[var(--up)]";
+  if (s === "lagging") return "border-[var(--down)]/40 bg-[var(--down-soft)] text-[var(--down)]";
+  return "border-[var(--line)] bg-[var(--hover)] text-[var(--ink-soft)]";
 }
 
 function RotationList({ items }: { items: RotationItem[] }) {
   const flowing = items.filter((i) => (i.state || "").toLowerCase() === "improving");
   const cooling = items.filter((i) => (i.state || "").toLowerCase() === "weakening");
   return (
-    <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
-      <h2 className="mb-1 text-base font-bold text-slate-100">Smart Money Rotation</h2>
-      <p className="mb-4 text-[11px] text-slate-500">
+    <article className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
+      <h2 className="mb-1 text-base font-bold text-[var(--ink)]">Smart Money Rotation</h2>
+      <p className="mb-4 text-[11px] text-[var(--ink-muted)]">
         Where money is flowing (Improving) vs cooling off (Weakening), then Leading/Lagging fill.
       </p>
       <div className="space-y-2.5">
@@ -467,34 +434,34 @@ function RotationList({ items }: { items: RotationItem[] }) {
           return (
             <div
               key={item.id}
-              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/5 bg-[#0a0e14] px-3 py-2.5"
+              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5"
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm font-semibold text-slate-200">{item.name}</span>
+                  <span className="truncate text-sm font-semibold text-[var(--ink)]">{item.name}</span>
                   <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide", rotationTone(item.state))}>
                     {badge}
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] text-slate-500">
+                <p className="mt-1 text-[10px] text-[var(--ink-muted)]">
                   Strength {formatNumber(item.score, { maximumFractionDigits: 0 })}
                   {ret != null ? ` · 3M ${formatPct(ret, 1)}` : ""}
                   {hint ? ` · ${hint}` : ""}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wide text-slate-600">Score</p>
-                <p className="text-sm font-bold tabular-nums text-slate-100">
+                <p className="text-[10px] uppercase tracking-wide text-[var(--ink-muted)]">Score</p>
+                <p className="text-sm font-bold tabular-nums text-[var(--ink)]">
                   {formatNumber(item.score, { maximumFractionDigits: 0 })}
                 </p>
               </div>
             </div>
           );
         })}
-        {items.length === 0 ? <p className="py-6 text-center text-xs text-slate-500">No rotation data yet.</p> : null}
+        {items.length === 0 ? <p className="py-6 text-center text-xs text-[var(--ink-muted)]">No rotation data yet.</p> : null}
       </div>
       {(flowing.length > 0 || cooling.length > 0) && (
-        <p className="mt-3 text-[10px] text-slate-600">
+        <p className="mt-3 text-[10px] text-[var(--ink-muted)]">
           {flowing.length ? `${flowing.length} improving` : "No improving"}
           {" · "}
           {cooling.length ? `${cooling.length} weakening` : "No weakening"}
@@ -516,31 +483,31 @@ function MarketList({
   viewLabel?: string;
 }) {
   return (
-    <article className="rounded-lg border border-white/7 bg-[#0d1219] p-5">
+    <article className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-slate-100">{title}</h2>
-        <Link href={href} className="shrink-0 text-[11px] font-semibold text-emerald-300 hover:text-emerald-200">
+        <h2 className="text-base font-bold text-[var(--ink)]">{title}</h2>
+        <Link href={href} className="shrink-0 text-[11px] font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">
           {viewLabel}
         </Link>
       </div>
       <table className="w-full text-left text-xs">
-        <thead className="text-[10px] uppercase tracking-wide text-slate-600">
+        <thead className="text-[10px] uppercase tracking-wide text-[var(--ink-muted)]">
           <tr>
             <th className="pb-3">Name</th>
             <th className="pb-3 text-right">Price</th>
             <th className="pb-3 text-right">1D %</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-[var(--line)]">
           {rows.slice(0, 6).map((row) => (
             <tr key={"symbol" in row ? row.symbol : row.name}>
               <td className="py-3">
-                <p className="font-bold text-emerald-300">{"symbol" in row ? row.symbol : row.name}</p>
+                <p className="font-bold text-[var(--accent)]">{"symbol" in row ? row.symbol : row.name}</p>
                 {"symbol" in row && row.name && row.name !== row.symbol ? (
-                  <p className="text-[10px] text-slate-500">{row.name}</p>
+                  <p className="text-[10px] text-[var(--ink-muted)]">{row.name}</p>
                 ) : null}
               </td>
-              <td className="py-3 text-right font-semibold tabular-nums text-slate-200">
+              <td className="py-3 text-right font-semibold tabular-nums text-[var(--ink)]">
                 {formatNumber(row.value, { maximumFractionDigits: 2 })}
               </td>
               <td className={cn("py-3 text-right font-bold tabular-nums", pctClass(row.changePct))}>
@@ -550,7 +517,7 @@ function MarketList({
           ))}
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={3} className="py-8 text-center text-slate-500">
+              <td colSpan={3} className="py-8 text-center text-[var(--ink-muted)]">
                 No quotes yet.
               </td>
             </tr>
@@ -563,17 +530,17 @@ function MarketList({
 
 function QuoteCard() {
   return (
-    <article className="flex min-h-52 items-center justify-center rounded-lg border border-white/7 bg-[#0d1219] p-8 text-center">
-      <div><p className="text-xl font-extrabold leading-snug text-slate-100">"Investing is not about timing the market, but time in the market."</p><span className="mx-auto mt-5 block h-1 w-12 rounded-full bg-emerald-400" /></div>
+    <article className="flex min-h-52 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--surface)] p-8 text-center">
+      <div><p className="text-xl font-extrabold leading-snug text-[var(--ink)]">"Investing is not about timing the market, but time in the market."</p><span className="mx-auto mt-5 block h-1 w-12 rounded-full bg-[var(--accent)]" /></div>
     </article>
   );
 }
 
 function WatchlistCta() {
   return (
-    <article className="relative min-h-52 overflow-hidden rounded-lg border border-white/7 bg-[#0d1219] p-8">
-      <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-center opacity-10"><BarChart3 className="h-36 w-36 text-emerald-300" /></div>
-      <div className="relative max-w-xs"><Search className="mb-5 h-6 w-6 text-emerald-300" /><p className="text-2xl font-extrabold leading-tight text-slate-100">Build your watchlist. Track opportunities.<span className="block text-emerald-400">Stay ahead.</span></p></div>
+    <article className="relative min-h-52 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)] p-8">
+      <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-center opacity-10"><BarChart3 className="h-36 w-36 text-[var(--accent)]" /></div>
+      <div className="relative max-w-xs"><Search className="mb-5 h-6 w-6 text-[var(--accent)]" /><p className="text-2xl font-extrabold leading-tight text-[var(--ink)]">Build your watchlist. Track opportunities.<span className="block text-[var(--accent)]">Stay ahead.</span></p></div>
     </article>
   );
 }

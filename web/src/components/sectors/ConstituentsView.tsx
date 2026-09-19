@@ -18,6 +18,7 @@ type Props = {
   strengthScore?: string | null;
   rotationState?: string | null;
   scoreChange1m?: string | null;
+  embedded?: boolean;
 };
 
 const SORT_OPTIONS = [
@@ -38,6 +39,7 @@ export function ConstituentsView({
   strengthScore,
   rotationState,
   scoreChange1m,
+  embedded = false,
 }: Props) {
   const [rows, setRows] = useState<StockAnalysisRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -75,33 +77,44 @@ export function ConstituentsView({
     });
   }, [kind, name, exchange, sortBy, sortDir]);
 
-  return (
-    <div className="page-shell py-6">
-      <Link
-        href="/sectors"
-        className="text-sm text-[var(--accent)] underline-offset-4 hover:underline"
-      >
-        ← All sectors
-      </Link>
+  const table = (
+    <>
+      {!embedded ? (
+        <>
+          <Link
+            href="/sectors"
+            className="text-sm text-[var(--accent)] underline-offset-4 hover:underline"
+          >
+            ← All sectors
+          </Link>
 
-      <p className="mt-6 font-[family-name:var(--font-display)] text-sm uppercase tracking-[0.28em] text-[var(--accent)]">
-        {kind === "sector" ? "Sector" : "Industry"}
-      </p>
-      <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-wide text-[var(--ink)] sm:text-5xl">
-        {name}
-      </h1>
-      <p className="mt-2 text-[var(--ink-soft)]">
-        {parentSector ? `${parentSector} · ` : ""}
-        {strengthScore != null
-          ? `Strength ${formatNumber(strengthScore, { maximumFractionDigits: 0 })}`
-          : "Strength —"}
-        {rotationState ? ` · ${rotationState}` : ""}
-        {scoreChange1m != null
-          ? ` · 1M ${Number(scoreChange1m) >= 0 ? "+" : ""}${formatNumber(scoreChange1m, { maximumFractionDigits: 1 })}`
-          : ""}
-        {` · ${total} stocks with recent prices`}
-        {pending ? " · Loading…" : ""}
-      </p>
+          <p className="mt-6 font-[family-name:var(--font-display)] text-sm uppercase tracking-[0.28em] text-[var(--accent)]">
+            {kind === "sector" ? "Sector" : "Industry"}
+          </p>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-wide text-[var(--ink)] sm:text-5xl">
+            {name}
+          </h1>
+          <p className="mt-2 text-[var(--ink-soft)]">
+            {parentSector ? `${parentSector} · ` : ""}
+            {strengthScore != null
+              ? `Strength ${formatNumber(strengthScore, { maximumFractionDigits: 0 })}`
+              : "Strength —"}
+            {rotationState ? ` · ${rotationState}` : ""}
+            {scoreChange1m != null
+              ? ` · 1M ${Number(scoreChange1m) >= 0 ? "+" : ""}${formatNumber(scoreChange1m, { maximumFractionDigits: 1 })}`
+              : ""}
+            {` · ${total} stocks with recent prices`}
+            {pending ? " · Loading…" : ""}
+          </p>
+        </>
+      ) : (
+        <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-wide text-[var(--ink)]">
+          Constituents
+          <span className="ml-2 text-sm font-normal text-[var(--ink-muted)]">
+            {total} stocks{pending ? " · Loading…" : ""}
+          </span>
+        </h2>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <label className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">
@@ -259,6 +272,11 @@ export function ConstituentsView({
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   );
+
+  if (embedded) {
+    return <div className="mt-12">{table}</div>;
+  }
+  return <div className="page-shell py-6">{table}</div>;
 }

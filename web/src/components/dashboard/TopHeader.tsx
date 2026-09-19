@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Menu, Moon } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 
 import { StockSearch } from "@/components/stock/StockSearch";
+import { ContrastControl } from "@/components/theme/ContrastControl";
 import { formatIstClock, isNseMarketOpen } from "@/lib/dashboard-data";
 
 type Props = {
@@ -25,11 +26,11 @@ export function TopHeader({ onMenuClick }: Props) {
   const clockLabel = now ? formatIstClock(now) : "—";
 
   return (
-    <header className="sticky top-0 z-30 flex h-[var(--header-h)] items-center gap-3 border-b border-[var(--line)] bg-[var(--background)]/90 px-3 backdrop-blur-md sm:px-4">
+    <header className="sticky top-0 z-30 flex h-[var(--header-h)] items-center gap-3 border-b border-[var(--line)] bg-[var(--surface)]/90 px-3 backdrop-blur-md sm:px-4">
       <button
         type="button"
         onClick={onMenuClick}
-        className="rounded-lg p-2 text-[var(--ink-soft)] transition hover:bg-white/5 hover:text-[var(--ink)]"
+        className="rounded-lg p-2 text-[var(--ink-soft)] transition hover:bg-[var(--hover)] hover:text-[var(--ink)]"
         aria-label="Toggle sidebar"
       >
         <Menu className="h-5 w-5" />
@@ -58,16 +59,10 @@ export function TopHeader({ onMenuClick }: Props) {
       </div>
 
       <div className="flex items-center gap-1">
+        <ContrastControl />
         <button
           type="button"
-          className="rounded-lg p-2 text-[var(--ink-soft)] transition hover:bg-white/5 hover:text-[var(--ink)]"
-          aria-label="Theme"
-        >
-          <Moon className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          className="relative rounded-lg p-2 text-[var(--ink-soft)] transition hover:bg-white/5 hover:text-[var(--ink)]"
+          className="relative rounded-lg p-2 text-[var(--ink-soft)] transition hover:bg-[var(--hover)] hover:text-[var(--ink)]"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />

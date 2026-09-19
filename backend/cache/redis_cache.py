@@ -17,6 +17,7 @@ PREFIX_STRATEGY = "strategy:"
 PREFIX_SCREENER = "screener:"
 PREFIX_INDUSTRY = "industry_strength:"
 PREFIX_MARKETS = "markets:"
+PREFIX_AI = "ai_query:"
 
 
 def _get_client():
@@ -90,3 +91,4 @@ def invalidate_market_caches() -> None:
     delete_prefix(PREFIX_SCREENER)
     delete_prefix(PREFIX_INDUSTRY)
     delete_prefix(PREFIX_MARKETS)
+    delete_prefix(PREFIX_AI)

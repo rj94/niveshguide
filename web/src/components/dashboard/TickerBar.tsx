@@ -39,7 +39,7 @@ export function TickerBar({ items: initialItems }: Props) {
 
   if (items.length === 0) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex h-[var(--ticker-h)] items-center border-t border-[var(--line)] bg-[#080a0f] px-3 text-xs text-[var(--ink-muted)] lg:left-[var(--sidebar-w)]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex h-[var(--ticker-h)] items-center border-t border-[var(--line)] bg-[var(--surface-muted)] px-3 text-xs text-[var(--ink-muted)]">
         Waiting for live quotes…
       </div>
     );
@@ -48,7 +48,7 @@ export function TickerBar({ items: initialItems }: Props) {
   const loop = [...items, ...items];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 h-[var(--ticker-h)] overflow-hidden border-t border-[var(--line)] bg-[#080a0f] lg:left-[var(--sidebar-w)]">
+    <div className="fixed bottom-0 left-0 right-0 z-40 h-[var(--ticker-h)] overflow-hidden border-t border-[var(--line)] bg-[var(--surface-muted)]">
       <div className="ticker-track flex h-full w-max items-center gap-8 px-3">
         {loop.map((item, i) => {
           const up = item.changePct >= 0;

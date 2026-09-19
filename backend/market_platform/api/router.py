@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from market_platform.api import markets, news, portfolio, screener, sectors, stocks, strategies, watchlists
+from market_platform.api import ai, markets, news, portfolio, screener, sectors, stocks, strategies, watchlists
 
 api_router = APIRouter()
 
@@ -22,6 +22,8 @@ def api_v1_index() -> dict:
             "/watchlists/me",
             "/portfolio/me",
             "/news",
+            "/ai/status",
+            "/ai/query",
         ],
         "docs": "/docs",
         "ui": "http://127.0.0.1:3000",
@@ -36,3 +38,4 @@ api_router.include_router(markets.router, prefix="/markets", tags=["platform-mar
 api_router.include_router(watchlists.router, prefix="/watchlists", tags=["platform-watchlists"])
 api_router.include_router(portfolio.router, prefix="/portfolio", tags=["platform-portfolio"])
 api_router.include_router(news.router, prefix="/news", tags=["platform-news"])
+api_router.include_router(ai.router, prefix="/ai", tags=["platform-ai"])

@@ -6,12 +6,18 @@ export type StrengthRow = {
   momentum_score: string | null;
   relative_strength_score: string | null;
   breadth_score: string | null;
+  volume_score: string | null;
+  breakout_score: string | null;
+  trend_score: string | null;
+  emerging_score: string | null;
   risk_score: string | null;
   rank: number | null;
   rank_change: number | null;
   score_change_1w: string | null;
   score_change_1m: string | null;
   score_change_3m: string | null;
+  score_change_5d: string | null;
+  score_change_21d: string | null;
   score_1w_ago: string | null;
   score_1m_ago: string | null;
   score_3m_ago: string | null;
@@ -24,9 +30,21 @@ export type StrengthRow = {
   return_3m_ew: string | null;
   return_3m_index: string | null;
   return_3m_source: "index" | "cap_weight" | "equal_weight" | string | null;
+  above_21dma_pct: string | null;
   above_50dma_pct: string | null;
+  above_200dma_pct: string | null;
+  breakout_20d_pct: string | null;
+  breakout_50d_pct: string | null;
+  breakout_52w_pct: string | null;
+  volume_expansion: string | null;
+  alerts: string[];
   sector_name?: string | null;
   sector_strength_score?: string | null;
+  industry_name?: string | null;
+  industry_strength_score?: string | null;
+};
+
+export type IndustryScoreRow = StrengthRow & {
   industry_name?: string | null;
   industry_strength_score?: string | null;
 };
@@ -34,10 +52,7 @@ export type StrengthRow = {
 export type SectorScoreRow = StrengthRow & {
   sector_name?: string | null;
   sector_strength_score?: string | null;
-};
-export type IndustryScoreRow = StrengthRow & {
-  industry_name?: string | null;
-  industry_strength_score?: string | null;
+  industries?: IndustryScoreRow[];
 };
 
 export type SectorListResponse = {

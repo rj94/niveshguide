@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Bot,
   LayoutDashboard,
   LineChart,
   Search,
@@ -20,6 +21,7 @@ const PRIMARY_NAV = [
   { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/volume-gainer", label: "Volume", icon: Activity },
   { href: "/analysis", label: "Strategies", icon: Sparkles },
+  { href: "/ai", label: "AI Search", icon: Bot },
 ] as const;
 
 type Props = {
@@ -52,8 +54,8 @@ function NavLink({
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition",
         active
-          ? "bg-[var(--accent)] font-medium text-white shadow-[0_8px_20px_rgba(99,102,241,0.28)]"
-          : "text-[var(--ink-soft)] hover:bg-white/[0.04] hover:text-[var(--ink)]",
+          ? "bg-[var(--accent)] font-medium text-[var(--accent-ink)] shadow-[0_8px_20px_var(--glow-strong)]"
+          : "text-[var(--ink-soft)] hover:bg-[var(--hover)] hover:text-[var(--ink)]",
       )}
     >
       <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.25 : 1.75} />
@@ -94,7 +96,7 @@ export function Sidebar({ open, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-white/5 hover:text-[var(--ink)] lg:hidden"
+            className="rounded-md p-1.5 text-[var(--ink-muted)] hover:bg-[var(--hover)] hover:text-[var(--ink)] lg:hidden"
             aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />

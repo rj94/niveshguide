@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     scheduler_screener_enabled: bool = True
     timezone: str = "Asia/Kolkata"
     yfinance_suffix: str = ".NS"
+    ai_enabled: bool = False
+    ai_provider: str = "openai"
+    ai_model: str = "gpt-4.1-mini"
+    ai_api_key: str | None = None
+    ai_max_rows: int = 50
+    ai_timeout_seconds: int = 20
 
     @property
     def cors_origin_list(self) -> list[str]:

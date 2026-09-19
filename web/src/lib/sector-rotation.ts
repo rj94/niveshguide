@@ -7,8 +7,10 @@ function num(value: string | number | null | undefined): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-/** True weekly score delta from the API — ignore 0/null placeholders. */
+/** True 5-session score delta from the API — ignore 0/null placeholders. */
 function weeklyScoreDelta(s: StrengthRow): number | null {
+  const five = num(s.score_change_5d);
+  if (five != null && five !== 0) return five;
   const w = num(s.score_change_1w);
   if (w == null || w === 0) return null;
   return w;

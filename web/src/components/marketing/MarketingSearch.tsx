@@ -17,14 +17,12 @@ import type { StockSummary } from "@/types/stock";
 
 type Props = {
   size?: "nav" | "hero";
-  variant?: "light" | "dark";
   className?: string;
   placeholder?: string;
 };
 
 export function MarketingSearch({
   size = "hero",
-  variant = "light",
   className,
   placeholder = "Search stocks (e.g. TCS, HDFCBANK)",
 }: Props) {
@@ -89,24 +87,17 @@ export function MarketingSearch({
   }
 
   const isHero = size === "hero";
-  const isDark = variant === "dark";
 
   return (
     <div ref={wrapRef} className={cn("relative", className)}>
       <form
         onSubmit={onSubmit}
-        className={cn(
-          "flex w-full items-stretch overflow-hidden rounded-xl border shadow-sm",
-          isDark
-            ? "border-white/8 bg-[#0d1219]"
-            : "border-slate-200 bg-white",
-        )}
+        className="flex w-full items-stretch overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)] shadow-sm"
       >
         <div className="relative flex min-w-0 flex-1 items-center">
           <Search
             className={cn(
-              "pointer-events-none absolute left-3",
-              isDark ? "text-slate-500" : "text-slate-400",
+              "pointer-events-none absolute left-3 text-[var(--ink-muted)]",
               isHero ? "h-5 w-5" : "h-4 w-4",
             )}
           />
@@ -122,10 +113,7 @@ export function MarketingSearch({
             }}
             placeholder={placeholder}
             className={cn(
-              "w-full bg-transparent outline-none",
-              isDark
-                ? "text-slate-100 placeholder:text-slate-600"
-                : "text-slate-900 placeholder:text-slate-400",
+              "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--ink-muted)]",
               isHero ? "py-3.5 pl-11 pr-3 text-base" : "py-2 pl-9 pr-2 text-sm",
             )}
             aria-label="Search stocks"
@@ -134,7 +122,7 @@ export function MarketingSearch({
         <button
           type="submit"
           className={cn(
-            "shrink-0 bg-emerald-500 font-semibold text-[#06110d] transition hover:bg-emerald-400",
+            "shrink-0 bg-[var(--accent)] font-semibold text-[var(--accent-ink)] transition hover:bg-[var(--accent-hover)]",
             isHero ? "px-6 text-sm" : "px-4 text-xs",
           )}
         >
@@ -143,18 +131,11 @@ export function MarketingSearch({
       </form>
 
       {open ? (
-        <div
-          className={cn(
-            "absolute z-30 mt-2 w-full overflow-hidden rounded-xl border shadow-lg",
-            isDark
-              ? "border-white/8 bg-[#0d1219]"
-              : "border-slate-200 bg-white",
-          )}
-        >
+        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-elevated)] shadow-lg shadow-[var(--shadow)]">
           {error ? (
-            <p className="px-4 py-3 text-sm text-red-600">{error}</p>
+            <p className="px-4 py-3 text-sm text-[var(--down)]">{error}</p>
           ) : results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-500">No matches</p>
+            <p className="px-4 py-3 text-sm text-[var(--ink-muted)]">No matches</p>
           ) : (
             <ul>
               {results.map((row) => (
@@ -162,39 +143,24 @@ export function MarketingSearch({
                   <button
                     type="button"
                     onClick={() => goTo(row.symbol)}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left",
-                      isDark ? "hover:bg-white/5" : "hover:bg-slate-50",
-                    )}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-[var(--hover)]"
                   >
                     <span className="min-w-0">
-                      <span
-                        className={cn(
-                          "block truncate text-sm font-semibold",
-                          isDark ? "text-slate-100" : "text-slate-900",
-                        )}
-                      >
+                      <span className="block truncate text-sm font-semibold text-[var(--ink)]">
                         {row.symbol}
                       </span>
-                      <span className="block truncate text-xs text-slate-500">
+                      <span className="block truncate text-xs text-[var(--ink-muted)]">
                         {row.company_name || row.exchange}
                       </span>
                     </span>
                     <span className="shrink-0 text-right">
-                      <span
-                        className={cn(
-                          "block text-sm tabular-nums",
-                          isDark ? "text-slate-200" : "text-slate-800",
-                        )}
-                      >
+                      <span className="block text-sm tabular-nums text-[var(--ink)]">
                         {formatPrice(row.last_price)}
                       </span>
                       <span
                         className={cn(
                           "block text-xs tabular-nums",
-                          (row.change_pct ?? 0) >= 0
-                            ? "text-emerald-600"
-                            : "text-red-500",
+                          (row.change_pct ?? 0) >= 0 ? "text-[var(--up)]" : "text-[var(--down)]",
                         )}
                       >
                         {formatPct(row.change_pct)}

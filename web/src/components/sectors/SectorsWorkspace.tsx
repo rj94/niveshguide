@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { formatNumber, formatPct } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import {
   DEFAULT_SECTOR_PREFS,
   SECTOR_COLUMN_DEFS,
@@ -12,61 +12,52 @@ import {
   type SectorColumnId,
   type SectorPrefs,
 } from "@/lib/sector-columns";
-import { sectorPerformancePct } from "@/lib/sector-rotation";
 import { cn } from "@/lib/utils";
 import { listSectors } from "@/services/api";
 import type { StrengthRow } from "@/types/sector";
 
-function strengthLabel(score: number | null): string {
-  if (score === null) return "—";
-  if (score >= 91) return "Exceptional";
-  if (score >= 76) return "Very Strong";
-  if (score >= 61) return "Strong";
-  if (score >= 41) return "Neutral";
-  if (score >= 21) return "Weak";
-  return "Very Weak";
-}
+import {
+  ChangeCell,
+  change21d,
+  change5d,
+  num,
+  scoreOf,
+  stateClass,
+  strengthLabel,
+} from "./sector-ui";
 
-function num(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  const n = typeof value === "string" ? Number(value) : value;
-  return Number.isNaN(n) ? null : n;
-}
-
-function ChangeCell({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-[var(--ink-muted)]">—</span>;
-  return (
-    <span
-      className={cn(
-        "tabular-nums",
-        value > 0 ? "text-[var(--up)]" : value < 0 ? "text-[var(--down)]" : "text-[var(--ink-muted)]",
-      )}
-    >
-      {value > 0 ? "↑ " : value < 0 ? "↓ " : ""}
-      {formatNumber(Math.abs(value), { maximumFractionDigits: 1 })}
-    </span>
-  );
-}
+const ROTATION_COLUMNS = [
+  { key: "Leading", hint: "Strong RS, momentum and breadth" },
+  { key: "Improving", hint: "Emerging — ranked by acceleration" },
+  { key: "Weakening", hint: "High RS, internals rolling over" },
+  { key: "Lagging", hint: "Weak RS and momentum" },
+] as const;
 
 function sortRows(rows: StrengthRow[], prefs: SectorPrefs): StrengthRow[] {
   const dir = prefs.sortDir === "asc" ? 1 : -1;
-  const scoreOf = (row: StrengthRow) =>
-    num(row.strength_score ?? row.sector_strength_score ?? row.industry_strength_score) ?? -1;
   return [...rows].sort((a, b) => {
     let av = 0;
     let bv = 0;
     switch (prefs.sortBy) {
       case "score":
-        av = scoreOf(a);
-        bv = scoreOf(b);
+        av = scoreOf(a) ?? -1;
+        bv = scoreOf(b) ?? -1;
+        break;
+      case "change_5d":
+        av = change5d(a) ?? -999;
+        bv = change5d(b) ?? -999;
+        break;
+      case "change_21d":
+        av = change21d(a) ?? -999;
+        bv = change21d(b) ?? -999;
         break;
       case "change_1m":
-        av = num(a.score_change_1m) ?? num(a.return_1m) ?? -999;
-        bv = num(b.score_change_1m) ?? num(b.return_1m) ?? -999;
+        av = change21d(a) ?? num(a.return_1m) ?? -999;
+        bv = change21d(b) ?? num(b.return_1m) ?? -999;
         break;
       case "change_1w":
-        av = sectorPerformancePct(a) ?? -999;
-        bv = sectorPerformancePct(b) ?? -999;
+        av = change5d(a) ?? -999;
+        bv = change5d(b) ?? -999;
         break;
       case "breadth":
         av = num(a.breadth_score) ?? -1;
@@ -86,6 +77,82 @@ function sortRows(rows: StrengthRow[], prefs: SectorPrefs): StrengthRow[] {
   });
 }
 
+function rotationBuckets(rows: StrengthRow[]) {
+  const buckets: Record<(typeof ROTATION_COLUMNS)[number]["key"], StrengthRow[]> = {
+    Leading: [],
+    Improving: [],
+    Weakening: [],
+    Lagging: [],
+  };
+  for (const row of rows) {
+    const state = (row.rotation_state || "") as keyof typeof buckets;
+    if (state in buckets) buckets[state].push(row);
+  }
+  buckets.Improving.sort((a, b) => (num(b.emerging_score) ?? 0) - (num(a.emerging_score) ?? 0));
+  for (const key of ["Leading", "Weakening", "Lagging"] as const) {
+    buckets[key].sort((a, b) => (scoreOf(b) ?? 0) - (scoreOf(a) ?? 0));
+  }
+  return buckets;
+}
+
+function RsMomentumScatter({ rows }: { rows: StrengthRow[] }) {
+  const points = rows
+    .map((row) => ({
+      name: row.name,
+      rs: num(row.relative_strength_score),
+      mom: num(row.momentum_score),
+      state: row.rotation_state,
+    }))
+    .filter((p): p is { name: string; rs: number; mom: number; state: string | null } => p.rs != null && p.mom != null)
+    .slice(0, 40);
+  const w = 320;
+  const h = 240;
+  const pad = 28;
+  return (
+    <section className="mt-10 border border-[var(--line)] bg-[var(--surface)]/70 p-4">
+      <h2 className="font-[family-name:var(--font-display)] text-xl tracking-wide text-[var(--ink)]">
+        RS vs momentum
+      </h2>
+      <p className="mt-1 text-xs text-[var(--ink-muted)]">
+        Upper-right is leadership. Points colored by rotation state.
+      </p>
+      <svg viewBox={`0 0 ${w} ${h}`} className="mt-4 w-full max-w-md" role="img" aria-label="RS versus momentum scatter">
+        <line x1={pad} y1={h - pad} x2={w - 8} y2={h - pad} stroke="currentColor" className="text-[var(--line)]" />
+        <line x1={pad} y1={8} x2={pad} y2={h - pad} stroke="currentColor" className="text-[var(--line)]" />
+        <text x={w / 2} y={h - 6} textAnchor="middle" className="fill-[var(--ink-muted)] text-[10px]">
+          Relative strength
+        </text>
+        <text
+          x={12}
+          y={h / 2}
+          textAnchor="middle"
+          transform={`rotate(-90 12 ${h / 2})`}
+          className="fill-[var(--ink-muted)] text-[10px]"
+        >
+          Momentum
+        </text>
+        {points.map((p) => {
+          const x = pad + (p.rs / 100) * (w - pad - 12);
+          const y = h - pad - (p.mom / 100) * (h - pad - 12);
+          const fill =
+            p.state === "Leading"
+              ? "var(--up)"
+              : p.state === "Improving"
+                ? "var(--accent)"
+                : p.state === "Lagging"
+                  ? "var(--down)"
+                  : "var(--ink-muted)";
+          return (
+            <circle key={p.name} cx={x} cy={y} r={4} fill={fill}>
+              <title>{`${p.name} · RS ${Math.round(p.rs)} · Mom ${Math.round(p.mom)}`}</title>
+            </circle>
+          );
+        })}
+      </svg>
+    </section>
+  );
+}
+
 function StrengthTable({
   title,
   rows,
@@ -103,6 +170,24 @@ function StrengthTable({
 }) {
   const visible = new Set(columns);
   if (showParent === false) visible.delete("parent");
+  const scoreCol = (row: StrengthRow, id: SectorColumnId) => {
+    switch (id) {
+      case "rs":
+        return num(row.relative_strength_score);
+      case "momentum":
+        return num(row.momentum_score);
+      case "breadth":
+        return num(row.breadth_score);
+      case "volume":
+        return num(row.volume_score);
+      case "breakout":
+        return num(row.breakout_score);
+      case "trend":
+        return num(row.trend_score);
+      default:
+        return null;
+    }
+  };
 
   return (
     <section className="mt-12">
@@ -110,7 +195,7 @@ function StrengthTable({
         {title}
       </h2>
       <div className="mt-4 overflow-x-auto border border-[var(--line)] bg-[var(--surface)]/70">
-        <table className="w-full min-w-[900px] text-left text-sm">
+        <table className="w-full min-w-[1100px] text-left text-sm">
           <thead className="border-b border-[var(--line)] text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">
             <tr>
               {visible.has("rank") ? <th className="px-4 py-3 font-medium">Rank</th> : null}
@@ -120,21 +205,23 @@ function StrengthTable({
               ) : null}
               {visible.has("score") ? <th className="px-4 py-3 font-medium">Score</th> : null}
               {visible.has("state") ? <th className="px-4 py-3 font-medium">State</th> : null}
+              {visible.has("rs") ? <th className="px-4 py-3 font-medium">RS</th> : null}
+              {visible.has("momentum") ? <th className="px-4 py-3 font-medium">Mom</th> : null}
+              {visible.has("breadth") ? <th className="px-4 py-3 font-medium">Breadth</th> : null}
+              {visible.has("volume") ? <th className="px-4 py-3 font-medium">Vol</th> : null}
+              {visible.has("breakout") ? <th className="px-4 py-3 font-medium">Break</th> : null}
+              {visible.has("trend") ? <th className="px-4 py-3 font-medium">Trend</th> : null}
+              {visible.has("change_5d") ? <th className="px-4 py-3 font-medium">5D Δ</th> : null}
+              {visible.has("change_21d") ? <th className="px-4 py-3 font-medium">21D Δ</th> : null}
               {visible.has("change_1w") ? <th className="px-4 py-3 font-medium">1W Δ</th> : null}
               {visible.has("change_1m") ? <th className="px-4 py-3 font-medium">1M Δ</th> : null}
-              {visible.has("change_3m") ? <th className="px-4 py-3 font-medium">3M Δ</th> : null}
-              {visible.has("momentum") ? <th className="px-4 py-3 font-medium">Momentum</th> : null}
-              {visible.has("breadth") ? <th className="px-4 py-3 font-medium">Breadth</th> : null}
               {visible.has("return_1m") ? <th className="px-4 py-3 font-medium">1M Ret</th> : null}
               {visible.has("names") ? <th className="px-4 py-3 font-medium">Names</th> : null}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const score = num(
-                row.strength_score ?? row.sector_strength_score ?? row.industry_strength_score,
-              );
-              const ret1m = num(row.return_1m);
+              const score = scoreOf(row);
               return (
                 <tr
                   key={`${row.parent_sector ?? ""}-${row.name}`}
@@ -156,11 +243,6 @@ function StrengthTable({
                       >
                         {row.name}
                       </Link>
-                      {row.is_gaining_strength ? (
-                        <span className="ml-2 text-xs uppercase tracking-[0.12em] text-[var(--accent)]">
-                          Gaining
-                        </span>
-                      ) : null}
                     </td>
                   ) : null}
                   {visible.has("parent") && showParent ? (
@@ -188,43 +270,41 @@ function StrengthTable({
                     </td>
                   ) : null}
                   {visible.has("state") ? (
-                    <td className="px-4 py-3 text-[var(--ink-soft)]">
+                    <td className={cn("px-4 py-3", stateClass(row.rotation_state))}>
                       {row.rotation_state ?? "—"}
+                    </td>
+                  ) : null}
+                  {(["rs", "momentum", "breadth", "volume", "breakout", "trend"] as const).map(
+                    (id) =>
+                      visible.has(id) ? (
+                        <td key={id} className="px-4 py-3 tabular-nums">
+                          {formatNumber(scoreCol(row, id), { maximumFractionDigits: 0 })}
+                        </td>
+                      ) : null,
+                  )}
+                  {visible.has("change_5d") ? (
+                    <td className="px-4 py-3">
+                      <ChangeCell value={change5d(row)} />
+                    </td>
+                  ) : null}
+                  {visible.has("change_21d") ? (
+                    <td className="px-4 py-3">
+                      <ChangeCell value={change21d(row)} />
                     </td>
                   ) : null}
                   {visible.has("change_1w") ? (
                     <td className="px-4 py-3">
-                      <ChangeCell value={sectorPerformancePct(row)} />
+                      <ChangeCell value={num(row.score_change_1w)} />
                     </td>
                   ) : null}
                   {visible.has("change_1m") ? (
                     <td className="px-4 py-3">
-                      <ChangeCell value={num(row.score_change_1m) ?? ret1m} />
-                    </td>
-                  ) : null}
-                  {visible.has("change_3m") ? (
-                    <td className="px-4 py-3">
-                      <ChangeCell value={num(row.score_change_3m)} />
-                    </td>
-                  ) : null}
-                  {visible.has("momentum") ? (
-                    <td className="px-4 py-3 tabular-nums">
-                      {formatNumber(row.momentum_score, { maximumFractionDigits: 0 })}
-                    </td>
-                  ) : null}
-                  {visible.has("breadth") ? (
-                    <td className="px-4 py-3 tabular-nums">
-                      {formatNumber(row.breadth_score, { maximumFractionDigits: 0 })}
+                      <ChangeCell value={num(row.score_change_1m)} />
                     </td>
                   ) : null}
                   {visible.has("return_1m") ? (
-                    <td
-                      className={cn(
-                        "px-4 py-3 tabular-nums",
-                        (ret1m ?? 0) >= 0 ? "text-[var(--up)]" : "text-[var(--down)]",
-                      )}
-                    >
-                      {formatPct(ret1m)}
+                    <td className="px-4 py-3 tabular-nums">
+                      {formatNumber(row.return_1m, { maximumFractionDigits: 1 })}
                     </td>
                   ) : null}
                   {visible.has("names") ? (
@@ -248,7 +328,6 @@ export function SectorsWorkspace() {
   const [asOf, setAsOf] = useState<string | null>(null);
   const [sectors, setSectors] = useState<StrengthRow[]>([]);
   const [industries, setIndustries] = useState<StrengthRow[]>([]);
-  const [gaining, setGaining] = useState<StrengthRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -274,7 +353,6 @@ export function SectorsWorkspace() {
         });
         setSectors(data.items);
         setIndustries(data.industries);
-        setGaining(data.gaining);
         setAsOf(data.as_of);
         setError(null);
       } catch (err) {
@@ -285,6 +363,7 @@ export function SectorsWorkspace() {
 
   const sortedSectors = useMemo(() => sortRows(sectors, prefs), [sectors, prefs]);
   const sortedIndustries = useMemo(() => sortRows(industries, prefs), [industries, prefs]);
+  const buckets = useMemo(() => rotationBuckets(sectors), [sectors]);
 
   function patch(partial: Partial<SectorPrefs>) {
     setPrefs((prev) => ({ ...prev, ...partial }));
@@ -306,15 +385,14 @@ export function SectorsWorkspace() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-[family-name:var(--font-display)] text-sm uppercase tracking-[0.28em] text-[var(--accent)]">
-            Sector Strength Engine
+            Sector Rotation
           </p>
           <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-wide text-[var(--ink)] sm:text-5xl">
-            Sector & industry map
+            Sector strength dashboard
           </h1>
           <p className="mt-3 max-w-2xl text-[var(--ink-soft)]">
-            Sectors and industries come from screener.in classifications linked
-            to each stock. Strength blends constituent momentum scores,
-            relative 3M return rank, and breadth (0–100).
+            Six-component score versus NIFTY 500: relative strength, momentum,
+            breadth, volume flow, breakouts, and trend quality.
             {asOf ? ` As of ${asOf}.` : ""}
             {pending ? " Updating…" : ""}
           </p>
@@ -342,8 +420,8 @@ export function SectorsWorkspace() {
               >
                 <option value="rank">Rank</option>
                 <option value="score">Score</option>
-                <option value="change_1m">1M change</option>
-                <option value="change_1w">1W change</option>
+                <option value="change_5d">5D change</option>
+                <option value="change_21d">21D change</option>
                 <option value="breadth">Breadth</option>
                 <option value="names">Constituents</option>
               </select>
@@ -378,18 +456,10 @@ export function SectorsWorkspace() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={prefs.gainingOnly}
-                  onChange={(e) => patch({ gainingOnly: e.target.checked })}
+                  checked={prefs.showScatter}
+                  onChange={(e) => patch({ showScatter: e.target.checked })}
                 />
-                Gaining only
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={prefs.showGaining}
-                  onChange={(e) => patch({ showGaining: e.target.checked })}
-                />
-                Show gaining cards
+                Show RS scatter
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -441,44 +511,45 @@ export function SectorsWorkspace() {
         </p>
       ) : null}
 
-      {prefs.showGaining && gaining.length > 0 ? (
-        <section className="mt-10">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-wide text-[var(--ink)]">
-            Gaining strength
-          </h2>
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {gaining.map((row) => {
-              const score = num(row.strength_score ?? row.sector_strength_score);
-              const ch = num(row.score_change_1m);
-              return (
-                <li key={row.name}>
-                  <Link
-                    href={`/sectors/sector/${encodeURIComponent(row.name)}`}
-                    className="block border border-[var(--line)] bg-[var(--surface)]/80 px-4 py-4 transition hover:border-[var(--accent)]"
-                  >
-                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--accent)]">
-                      {row.rotation_state ?? "Improving"}
-                    </p>
-                    <p className="mt-1 font-[family-name:var(--font-display)] text-xl tracking-wide text-[var(--ink)]">
-                      {row.name}
-                    </p>
-                    <div className="mt-3 flex items-end justify-between gap-3">
-                      <p className="font-[family-name:var(--font-display)] text-3xl tabular-nums text-[var(--ink)]">
-                        {score !== null
-                          ? formatNumber(score, { maximumFractionDigits: 0 })
-                          : "—"}
-                      </p>
-                      <p className="text-sm text-[var(--ink-soft)]">
-                        1M <ChangeCell value={ch} />
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+      <section className="mt-10 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {ROTATION_COLUMNS.map((col) => {
+          const list = buckets[col.key].slice(0, 8);
+          return (
+            <div key={col.key} className="border border-[var(--line)] bg-[var(--surface)]/80 p-4">
+              <p className={cn("text-xs uppercase tracking-[0.16em]", stateClass(col.key))}>
+                {col.key === "Improving" ? "Improving · Emerging" : col.key}
+              </p>
+              <p className="mt-1 text-xs text-[var(--ink-muted)]">{col.hint}</p>
+              <ul className="mt-3 space-y-2">
+                {list.map((row) => {
+                  const score = scoreOf(row);
+                  return (
+                    <li key={row.name}>
+                      <Link
+                        href={`/sectors/sector/${encodeURIComponent(row.name)}`}
+                        className="flex items-baseline justify-between gap-2 hover:text-[var(--accent)]"
+                      >
+                        <span className="truncate font-[family-name:var(--font-display)] tracking-wide">
+                          {row.name}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-sm">
+                          {score != null ? Math.round(score) : "—"}{" "}
+                          <ChangeCell value={change5d(row)} />
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+                {list.length === 0 ? (
+                  <li className="text-sm text-[var(--ink-muted)]">No names yet.</li>
+                ) : null}
+              </ul>
+            </div>
+          );
+        })}
+      </section>
+
+      {prefs.showScatter ? <RsMomentumScatter rows={sectors} /> : null}
 
       {prefs.showSectors ? (
         <StrengthTable

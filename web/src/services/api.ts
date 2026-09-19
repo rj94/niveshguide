@@ -1,3 +1,4 @@
+import type { AiQueryResponse, AiStatusResponse } from "@/types/ai";
 import type { MarketEtfsResponse, MarketsOverviewResponse } from "@/types/markets";
 import type {
   NewsCategoriesResponse,
@@ -117,6 +118,12 @@ export async function getSector(name: string): Promise<SectorScoreRow> {
 export async function getIndustry(name: string): Promise<IndustryScoreRow> {
   return apiFetch<IndustryScoreRow>(
     `/sectors/industries/by-name/${encodeURIComponent(name)}`,
+  );
+}
+
+export async function listSectorIndustries(name: string): Promise<IndustryScoreRow[]> {
+  return apiFetch<IndustryScoreRow[]>(
+    `/sectors/by-name/${encodeURIComponent(name)}/industries`,
   );
 }
 
@@ -337,5 +344,23 @@ export async function clearMyPortfolio(clientKey: string): Promise<PortfolioResp
   return apiFetch<PortfolioResponse>("/portfolio/me/holdings", {
     method: "DELETE",
     headers: clientHeaders(clientKey),
+  });
+}
+
+export async function getAiStatus(): Promise<AiStatusResponse> {
+  return apiFetch<AiStatusResponse>("/ai/status", { revalidate: 15 });
+}
+
+export async function askAiQuery(payload: {
+  query: string;
+  exchange?: string;
+  limit?: number;
+  include_explanation?: boolean;
+}): Promise<AiQueryResponse> {
+  return apiFetch<AiQueryResponse>("/ai/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    revalidate: 0,
   });
 }

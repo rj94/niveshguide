@@ -1,29 +1,95 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b0e14;
-  --foreground: #e8eaed;
-  --ink: #f3f4f6;
-  --ink-soft: #9ca3af;
-  --ink-muted: #6b7280;
-  --surface: #151921;
-  --surface-elevated: #1a1f2a;
-  --surface-muted: #0f1218;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-soft: rgba(99, 102, 241, 0.16);
-  --up: #10b981;
-  --up-soft: rgba(16, 185, 129, 0.14);
-  --down: #ef4444;
-  --down-soft: rgba(239, 68, 68, 0.14);
-  --warn: #f59e0b;
   --sidebar-w: 232px;
   --header-h: 56px;
   --ticker-h: 36px;
   --page-pad-x: 0.75rem;
   --page-pad-y: 0.75rem;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #080b0f;
+  --foreground: #f8fafc;
+  --ink: #f8fafc;
+  --ink-soft: #94a3b8;
+  --ink-muted: #64748b;
+  --surface: #0d1219;
+  --surface-elevated: #111923;
+  --surface-muted: #0a0e14;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --hover: rgba(255, 255, 255, 0.05);
+  --accent: #10b981;
+  --accent-hover: #34d399;
+  --accent-soft: rgba(16, 185, 129, 0.14);
+  --accent-ink: #06110d;
+  --up: #34d399;
+  --up-soft: rgba(52, 211, 153, 0.14);
+  --down: #f87171;
+  --down-soft: rgba(248, 113, 113, 0.14);
+  --warn: #f59e0b;
+  --glow-strong: rgba(16, 185, 129, 0.22);
+  --glow-soft: rgba(52, 211, 153, 0.12);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --scroll-thumb: rgba(255, 255, 255, 0.14);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --background: #f3f6f4;
+  --foreground: #0f172a;
+  --ink: #0b1220;
+  --ink-soft: #334155;
+  --ink-muted: #475569;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-muted: #e7eeea;
+  --line: rgba(15, 23, 42, 0.12);
+  --line-strong: rgba(15, 23, 42, 0.22);
+  --hover: rgba(15, 23, 42, 0.05);
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-soft: rgba(5, 150, 105, 0.12);
+  --accent-ink: #ffffff;
+  --up: #047857;
+  --up-soft: rgba(4, 120, 87, 0.12);
+  --down: #b91c1c;
+  --down-soft: rgba(185, 28, 28, 0.1);
+  --warn: #b45309;
+  --glow-strong: rgba(5, 150, 105, 0.12);
+  --glow-soft: rgba(5, 150, 105, 0.08);
+  --shadow: rgba(15, 23, 42, 0.12);
+  --scroll-thumb: rgba(15, 23, 42, 0.22);
+}
+
+html[data-theme="high"] {
+  color-scheme: dark;
+  --background: #000000;
+  --foreground: #ffffff;
+  --ink: #ffffff;
+  --ink-soft: #f1f5f9;
+  --ink-muted: #e2e8f0;
+  --surface: #0a0a0a;
+  --surface-elevated: #141414;
+  --surface-muted: #050505;
+  --line: rgba(255, 255, 255, 0.32);
+  --line-strong: rgba(255, 255, 255, 0.55);
+  --hover: rgba(255, 255, 255, 0.1);
+  --accent: #4ade80;
+  --accent-hover: #86efac;
+  --accent-soft: rgba(74, 222, 128, 0.18);
+  --accent-ink: #000000;
+  --up: #4ade80;
+  --up-soft: rgba(74, 222, 128, 0.16);
+  --down: #fb7185;
+  --down-soft: rgba(251, 113, 133, 0.16);
+  --warn: #fbbf24;
+  --glow-strong: rgba(74, 222, 128, 0.2);
+  --glow-soft: rgba(74, 222, 128, 0.1);
+  --shadow: rgba(0, 0, 0, 0.7);
+  --scroll-thumb: rgba(255, 255, 255, 0.35);
 }
 
 @media (min-width: 640px) {
@@ -58,6 +124,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), "Segoe UI", sans-serif;
+}
+
+.app-canvas {
+  background:
+    radial-gradient(ellipse 70% 42% at 88% -10%, var(--glow-soft), transparent 52%),
+    var(--background);
+  color: var(--ink);
 }
 
 @keyframes fade-up {
@@ -98,7 +171,7 @@ body {
 }
 
 .dashboard-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--scroll-thumb);
   border-radius: 999px;
 }
 
@@ -114,24 +187,22 @@ body {
   animation-play-state: paused;
 }
 
-
-/* Marketing homepage */
 .marketing-root {
   min-height: 100%;
-  background: #080b0f;
-  color: #f8fafc;
+  background: var(--background);
+  color: var(--ink);
 }
 
 .marketing-hero-glow {
   background:
-    radial-gradient(ellipse 80% 60% at 70% 40%, rgba(16, 185, 129, 0.25), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(52, 211, 153, 0.15), transparent 55%);
+    radial-gradient(ellipse 80% 60% at 70% 40%, var(--glow-strong), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, var(--glow-soft), transparent 55%);
 }
 
 .marketing-cta-bars {
   background: repeating-linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.12) 0 6px,
+    color-mix(in srgb, var(--ink) 12%, transparent) 0 6px,
     transparent 6px 14px
   );
   mask-image: linear-gradient(90deg, transparent, black 40%);
